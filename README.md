@@ -32,7 +32,7 @@ Create folders for each project and put your project-specific files in the respe
 
 Eg. 
 
-```bash
+```
 
 Avionics
 .
