@@ -1,3 +1,4 @@
+![McGill Rocket Team Logo](https://raw.githubusercontent.com/McGillRocketTeam/ground-station-2019/master/media/MRT-logo.png)
 # avionics-2020
 Contains all projects in Avionics other than ground-station. 
 
