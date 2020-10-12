@@ -39,7 +39,9 @@ Avionics
 .
 ├── Ejection
 |   └── Testing
-├── Embedded R&D
+├── Flight Computer R&D
+|   └── Flight Computer
+|   └── Learning
 |   └── Testing
 ├── Telemetry
 |   ├── Antenna
