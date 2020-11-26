@@ -1,0 +1,8 @@
+lsm9ds1_read_data_polling.c:164:6:lsm9ds1_read_data_polling	56	static
+lsm9ds1_read_data_polling.c:289:16:platform_write_imu	48	static
+lsm9ds1_read_data_polling.c:318:16:platform_write_mag	48	static
+lsm9ds1_read_data_polling.c:353:16:platform_read_imu	48	static
+lsm9ds1_read_data_polling.c:385:16:platform_read_mag	48	static
+lsm9ds1_read_data_polling.c:416:13:tx_com	16	static
+lsm9ds1_read_data_polling.c:434:13:platform_delay	16	static
+lsm9ds1_read_data_polling.c:442:13:platform_init	4	static
