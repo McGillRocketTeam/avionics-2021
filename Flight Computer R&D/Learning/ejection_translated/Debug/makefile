@@ -54,8 +54,8 @@ all: main-build
 main-build: ejection_translated.elf secondary-outputs
 
 # Tool invocations
-ejection_translated.elf: $(OBJS) $(USER_OBJS) C:\Users\hamsi\Desktop\Programming\MRT\ejection_translated\STM32F303RETX_FLASH.ld
-	arm-none-eabi-gcc -o "ejection_translated.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hamsi\Desktop\Programming\MRT\ejection_translated\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ejection_translated.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+ejection_translated.elf: $(OBJS) $(USER_OBJS) C:\Users\hamsi\Desktop\Programming\RocketTeam\ejection_translated\STM32F303RETX_FLASH.ld
+	arm-none-eabi-gcc -o "ejection_translated.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hamsi\Desktop\Programming\RocketTeam\ejection_translated\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ejection_translated.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

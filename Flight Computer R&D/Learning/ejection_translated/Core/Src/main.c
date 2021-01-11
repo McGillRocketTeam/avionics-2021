@@ -77,6 +77,9 @@ long time11;
 long time12;
 long time21;
 long time22;
+
+uint16_t size;
+uint8_t Data[256];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -294,7 +297,11 @@ void setup() {
 	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
 	if (!begin()){
-		printf("\r\nCould not find a valid BME280 sensor, check wiring!");
+		///printf("\r\nCould not find a valid BME280 sensor, check wiring!");
+		size = sprintf((char *)Data, "Could not find a valid BME280 sensor, check wiring\n");
+		HAL_UART_Transmit(&huart2, Data, size, 1000);
+		HAL_Delay(2000);
+
 		HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, GPIO_PIN_RESET);
 
 		HAL_Delay(5000);
@@ -408,7 +415,16 @@ void loop() {
 
 	}
 	//Just for debuggging.
-	printf("alt_meas = %d,  average_gradient = %d, alt_filtered = %d",alt_meas,average_gradient,alt_filtered);
+	// printf("alt_meas = %d,  average_gradient = %d, alt_filtered = %d",alt_meas,average_gradient,alt_filtered);
+
+	size = sprintf((char *)Data,", alt_meas: %.2d\n", alt_meas);
+	HAL_UART_Transmit(&huart2, Data, size, 1000);
+
+	size = sprintf((char *)Data,", average_gradient: %.2d\n", average_gradient);
+	HAL_UART_Transmit(&huart2, Data, size, 1000);
+
+	size = sprintf((char *)Data,", alt_filtered: %.2d\n", alt_filtered);
+	HAL_UART_Transmit(&huart2, Data, size, 1000);
 
 	HAL_Delay(5);
 }
