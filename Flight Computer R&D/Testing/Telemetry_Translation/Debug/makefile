@@ -40,8 +40,8 @@ Telemetry_Translation.bin \
 all: Telemetry_Translation.elf secondary-outputs
 
 # Tool invocations
-Telemetry_Translation.elf: $(OBJS) $(USER_OBJS) C:\Users\SlinderKid\Documents\MRT\ -\ Project\ Files\Telemetry_Translation\STM32F303RETX_FLASH.ld
-	arm-none-eabi-gcc -o "Telemetry_Translation.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\SlinderKid\Documents\MRT - Project Files\Telemetry_Translation\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Telemetry_Translation.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Telemetry_Translation.elf: $(OBJS) $(USER_OBJS) C:\Users\SlinderKid\Desktop\McGill\00\ -\ MRT\avionics-2021\Flight\ Computer\ R&D\Testing\Telemetry_Translation\STM32F303RETX_FLASH.ld
+	arm-none-eabi-gcc -o "Telemetry_Translation.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\SlinderKid\Desktop\McGill\00 - MRT\avionics-2021\Flight Computer R&D\Testing\Telemetry_Translation\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Telemetry_Translation.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

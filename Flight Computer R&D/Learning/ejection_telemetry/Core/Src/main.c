@@ -24,6 +24,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,6 +109,40 @@ void StartEjection(void *argument);
 void StartTelemetry(void *argument);
 
 /* USER CODE BEGIN PFP */
+
+
+int XTENDSerial_Begin(int x);
+int bmp_Begin(void);
+int bno_Begin(void);
+int GPS_Begin(void);
+int SD_Begin(int x);
+int RTC_Begin(void);
+int RTC_initialized(void);
+
+int SD_Exist(char *name);
+void SD_remove(char *name);
+FILE * SD_Open(char *name, char *mode);
+void RTC_Adjust(/*Date time*/);
+
+char * getDateTime(void);
+
+float bno_getAccelerometer_getX();
+float bno_getAccelerometer_getY();
+float bno_getAccelerometer_getZ();
+
+float bno_getEuler_getX();
+float bno_getEuler_getY();
+float bno_getEuler_getZ();
+
+float bmp_readTemperature();
+float bmp_readPressure();
+
+float GPS_getLatitude();
+float GPS_getLongitude();
+float GPS_getAltitude();
+
+void XTENDSerial_print(char * str);
+
 
 /* USER CODE END PFP */
 
@@ -334,6 +372,8 @@ float readAltitude(float local_pressure){
 }
 
 
+
+
 ///Empty functions end here
 #define false 0
 #define true 1
@@ -478,6 +518,88 @@ void loop() {
 
 	HAL_Delay(5);
 }
+
+int XTENDSerial_Begin(int x){
+	return x;
+}
+int bmp_Begin(void){
+	return true;
+}
+int bno_Begin(void)
+{
+	return true;
+}
+int myGPS_Begin(void)
+{
+	return true;
+}
+int SD_Begin(int x){
+	return x;
+}
+int RTC_Begin(void){
+	return true;
+}
+int RTC_initialized(void){
+	return true;
+}
+
+int SD_Exist(char *name){
+	return false;
+}
+void SD_remove(char *name){
+	return;
+}
+FILE * SD_Open(char *name, char *mode){
+	return NULL;
+}
+void RTC_Adjust(/*Date time*/){
+	return;
+}
+
+char * getDateTime(void){
+	return "date_time";
+}
+
+float bno_getAccelerometer_getX(){
+	return 10;
+}
+float bno_getAccelerometer_getY(){
+	return 10;
+}
+float bno_getAccelerometer_getZ(){
+	return 10;
+}
+
+float bno_getEuler_getX(){
+	return 10;
+}
+float bno_getEuler_getY(){
+	return 10;
+}
+float bno_getEuler_getZ(){
+	return 10;
+}
+
+float bmp_readTemperature(){
+	return 10;
+}
+float bmp_readPressure(){
+	return 10;
+}
+
+float GPS_getLatitude(){
+	return 10;
+}
+float GPS_getLongitude(){
+	return 10;
+}
+float GPS_getAltitude(){
+	return 10;
+}
+
+void XTENDSerial_print(char * str){
+	return;
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartEjection */
@@ -511,10 +633,116 @@ void StartTelemetry(void *argument)
 {
 	/* USER CODE BEGIN StartTelemetry */
 	/* Infinite loop */
+
+	//TODO Initialise serial (UART with specific baud rate and Wire.begin which idk)
+
+		char msg[500];
+
+		//TODO sensor initialisation
+			struct FILE *myFile;
+			float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
+			int seaLevelhPa = 102540;
+
+			sprintf(msg, "All sensor test\n");
+			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+			// Check BMP
+			  if (!bmp_Begin()) {
+			    sprintf(msg, "BMP280 initialization failed!\n");
+			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			    while (1);
+			  }
+
+			  // Check BNO
+			  if (!bno_Begin())
+			  {
+				sprintf(msg, "BNO055 initialization failed!\n");
+				HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			    while (1);
+			  }
+
+			  // Check GPS
+			  if (myGPS_Begin() == 0) //Connect to the Ublox module using Wire port
+			  {
+			    sprintf(msg, "GPS initialization failed!\n");
+			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			    while (1);
+			  }
+
+			  // Check SD Card
+			  if (!SD_Begin(10)) {
+			    sprintf(msg, "SD card initialization failed!\n");
+			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			    return;
+			  }
+
+			  // Check RTC
+			  if (! RTC_Begin()) {
+			    sprintf(msg, "Couldn't find RTC\n");
+			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			    while (1);
+			  }
+
+			  if(SD_Exist("example.txt")){
+			  	SD_remove("example.txt");
+			  }
+
+			  myFile = SD_Open("example.txt", "wt");
+			  fclose(myFile);
+
+			   if (! RTC_initialized()) {
+			     sprintf(msg, "RTC is NOT running!");
+			     HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			     // following line sets the RTC to the date & time this sketch was compiled
+			     RTC_Adjust(/*TODO date and time format*/);
+			     // This line sets the RTC with an explicit date & time, for example to set
+			     // January 21, 2014 at 3am you would call:
+			     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+			   }
+
+
+			   /*TODO
+			    * bno, bmp and GPS configuration (will do after we figure out the drivers)
+			    */
+
+
+
 	for(;;)
 	{
+		accel_x = bno_getAccelerometer_getX();
+			  accel_y = bno_getAccelerometer_getY();
+			  accel_z = bno_getAccelerometer_getZ();
+
+			  yaw = bno_getEuler_getX();
+			  pitch = bno_getEuler_getY();
+			  roll = bno_getEuler_getZ();
+
+			  temp = bmp_readTemperature();
+			  pressure = bmp_readPressure();
+
+			  real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
+
+			  long latitude = GPS_getLatitude();
+			  latitude /= pow(10,7);
+
+			  long longitude = GPS_getLongitude();
+			  longitude /= pow(10,7);
+
+			  long gpsAltitude = GPS_getAltitude();
+			  gpsAltitude /= pow(10,3);
+
+			 sprintf(msg, "Temp:%f,Pressure:%f,Altitude(BMP,m):%f,Pitch:%f,Roll:%f,Yaw:%f,Latitude:%f,Longitude:%f,Altitude(GPS,m):%f,Time:%s\n\n\n",
+					 temp, pressure, real_altitude, pitch, roll, yaw, latitude, longitude, gpsAltitude, getDateTime());
+			  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+			  myFile = SD_Open("example.txt", "wt");
+			  fputs(msg, myFile);
+			  fclose(myFile);
+			  XTENDSerial_print(msg);
+			  HAL_Delay(1000);
 		osDelay(1);
 	}
+	free(myFile);
 	/* USER CODE END StartTelemetry */
 }
 
