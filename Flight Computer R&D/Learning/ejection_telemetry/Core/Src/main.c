@@ -639,7 +639,7 @@ void StartTelemetry(void *argument)
 		char msg[500];
 
 		//TODO sensor initialisation
-			struct FILE *myFile;
+			//struct FILE *myFile;
 			float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
 			int seaLevelhPa = 102540;
 
@@ -687,8 +687,8 @@ void StartTelemetry(void *argument)
 			  	SD_remove("example.txt");
 			  }
 
-			  myFile = SD_Open("example.txt", "wt");
-			  fclose(myFile);
+			  //myFile = SD_Open("example.txt", "wt");
+			  //fclose(myFile);
 
 			   if (! RTC_initialized()) {
 			     sprintf(msg, "RTC is NOT running!");
@@ -735,14 +735,14 @@ void StartTelemetry(void *argument)
 					 temp, pressure, real_altitude, pitch, roll, yaw, latitude, longitude, gpsAltitude, getDateTime());
 			  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 
-			  myFile = SD_Open("example.txt", "wt");
-			  fputs(msg, myFile);
-			  fclose(myFile);
+			  //myFile = SD_Open("example.txt", "wt");
+			  //fputs(msg, myFile);
+			  //fclose(myFile);
 			  XTENDSerial_print(msg);
-			  HAL_Delay(1000);
+
 		osDelay(1);
 	}
-	free(myFile);
+	//free(myFile);
 	/* USER CODE END StartTelemetry */
 }
 
