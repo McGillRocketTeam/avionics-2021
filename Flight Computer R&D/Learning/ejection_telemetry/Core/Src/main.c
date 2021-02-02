@@ -399,8 +399,6 @@ void setup() {
 		while (1);
 	} else {
 		int i;
-		size = sprintf((char *)Data, "Ejection Initialized\n");
-		HAL_UART_Transmit(&huart2, Data, size, 1000);
 		for (i = 0 ; i < 3; i++){
 			HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, GPIO_PIN_RESET);
 			HAL_Delay(100);
@@ -414,6 +412,8 @@ void setup() {
 	}
 	ground_alt = ground_alt/500.0; //average of alt readings
 	a = 2*3.14159*a;
+	size = sprintf((char *)Data, "Ejection Initialized\n");
+	HAL_UART_Transmit(&huart2, Data, size, 1000);
 }
 
 void loop() {
@@ -507,13 +507,7 @@ void loop() {
 	//Just for debuggging.
 	// printf("alt_meas = %d,  average_gradient = %d, alt_filtered = %d",alt_meas,average_gradient,alt_filtered);
 
-	size = sprintf((char *)Data,", alt_meas: %.2d\n", alt_meas);
-	HAL_UART_Transmit(&huart2, Data, size, 1000);
-
-	size = sprintf((char *)Data,", average_gradient: %.2d\n", average_gradient);
-	HAL_UART_Transmit(&huart2, Data, size, 1000);
-
-	size = sprintf((char *)Data,", alt_filtered: %.2d\n", alt_filtered);
+	size = sprintf((char *)Data,"alt_meas: %.2d , average_gradient: %.2d , alt_filtered: %.2d\n", alt_meas, average_gradient, alt_filtered);
 	HAL_UART_Transmit(&huart2, Data, size, 1000);
 
 	HAL_Delay(5);
@@ -634,122 +628,116 @@ void StartTelemetry(void *argument)
 {
 	/* USER CODE BEGIN StartTelemetry */
 	/* Infinite loop */
-	size = sprintf((char *)Data, "telemetry setup\n");
-	HAL_UART_Transmit(&huart2, Data, size, 1000);
 
 	//TODO Initialise serial (UART with specific baud rate and Wire.begin which idk)
-/*
-		char msg[500];
 
-		//TODO sensor initialisation
-			//struct FILE *myFile;
-			float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
-			int seaLevelhPa = 102540;
+	char msg[500];
 
-			sprintf(msg, "All sensor test\n");
-			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-
-
-			// Check BMP
-			  if (!bmp_Begin()) {
-			    sprintf(msg, "BMP280 initialization failed!\n");
-			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			    while (1);
-			  }
-
-			  // Check BNO
-			  if (!bno_Begin())
-			  {
-				sprintf(msg, "BNO055 initialization failed!\n");
-				HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			    while (1);
-			  }
-
-			  // Check GPS
-			  if (myGPS_Begin() == 0) //Connect to the Ublox module using Wire port
-			  {
-			    sprintf(msg, "GPS initialization failed!\n");
-			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			    while (1);
-			  }
-
-			  // Check SD Card
-			  if (!SD_Begin(10)) {
-			    sprintf(msg, "SD card initialization failed!\n");
-			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			    return;
-			  }
-
-			  // Check RTC
-			  if (! RTC_Begin()) {
-			    sprintf(msg, "Couldn't find RTC\n");
-			    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			    while (1);
-			  }
-
-			  if(SD_Exist("example.txt")){
-			  	SD_remove("example.txt");
-			  }
-*/
-			  //myFile = SD_Open("example.txt", "wt");
-			  //fclose(myFile);
-
-			   //if (! RTC_initialized()) {
-			     //sprintf(msg, "RTC is NOT running!");
-			     //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-			     // following line sets the RTC to the date & time this sketch was compiled
-			    // RTC_Adjust(/*TODO date and time format*/);
-			     // This line sets the RTC with an explicit date & time, for example to set
-			     // January 21, 2014 at 3am you would call:
-			     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-			   //}
+	//TODO sensor initialisation
+	//struct FILE *myFile;
+	float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
+	int seaLevelhPa = 102540;
 
 
 
-			   /*TODO
-			    * bno, bmp and GPS configuration (will do after we figure out the drivers)
-			    */
+	// Check BMP
+	if (!bmp_Begin()) {
+		sprintf(msg, "BMP280 initialization failed!\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+		while (1);
+	}
 
-
-
-	for (;;)
-
+	// Check BNO
+	if (!bno_Begin())
 	{
-		size = sprintf((char *)Data, "telemetry loop\n");
-		HAL_UART_Transmit(&huart2, Data, size, 1000);
-/*
+		sprintf(msg, "BNO055 initialization failed!\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+		while (1);
+	}
+
+	// Check GPS
+	if (myGPS_Begin() == 0) //Connect to the Ublox module using Wire port
+	{
+		sprintf(msg, "GPS initialization failed!\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+		while (1);
+	}
+
+	// Check SD Card
+	if (!SD_Begin(10)) {
+		sprintf(msg, "SD card initialization failed!\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+		return;
+	}
+
+	// Check RTC
+	if (! RTC_Begin()) {
+		sprintf(msg, "Couldn't find RTC\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+		while (1);
+	}
+
+	if(SD_Exist("example.txt")){
+		SD_remove("example.txt");
+	}
+
+	//myFile = SD_Open("example.txt", "wt");
+	//fclose(myFile);
+
+	if (! RTC_initialized()) {
+		sprintf(msg, "RTC is NOT running!");
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		// following line sets the RTC to the date & time this sketch was compiled
+		// RTC_Adjust(/*TODO date and time format*/);
+		// This line sets the RTC with an explicit date & time, for example to set
+		// January 21, 2014 at 3am you would call:
+		// rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+	}
+
+	sprintf(msg, "Telemetry Initialized\n");
+	HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), 1000);
+
+
+	/*TODO
+	 * bno, bmp and GPS configuration (will do after we figure out the drivers)
+	 */
+
+	for (;;){
+
 		accel_x = bno_getAccelerometer_getX();
-			  accel_y = bno_getAccelerometer_getY();
-			  accel_z = bno_getAccelerometer_getZ();
+		accel_y = bno_getAccelerometer_getY();
+		accel_z = bno_getAccelerometer_getZ();
 
-			  yaw = bno_getEuler_getX();
-			  pitch = bno_getEuler_getY();
-			  roll = bno_getEuler_getZ();
+		yaw = bno_getEuler_getX();
+		pitch = bno_getEuler_getY();
+		roll = bno_getEuler_getZ();
 
-			  temp = bmp_readTemperature();
-			  pressure = bmp_readPressure();
+		temp = bmp_readTemperature();
+		pressure = bmp_readPressure();
 
-			  real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
+		real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
 
-			  long latitude = GPS_getLatitude();
-			  latitude /= pow(10,7);
+		long latitude = GPS_getLatitude();
+		latitude /= pow(10,7);
 
-			  long longitude = GPS_getLongitude();
-			  longitude /= pow(10,7);
+		long longitude = GPS_getLongitude();
+		longitude /= pow(10,7);
 
-			  long gpsAltitude = GPS_getAltitude();
-			  gpsAltitude /= pow(10,3);
+		long gpsAltitude = GPS_getAltitude();
+		gpsAltitude /= pow(10,3);
 
-			 sprintf(msg, "Temp:%f,Pressure:%f,Altitude(BMP,m):%f,Pitch:%f,Roll:%f,Yaw:%f,Latitude:%f,Longitude:%f,Altitude(GPS,m):%f,Time:%s\n\n\n",
-					 temp, pressure, real_altitude, pitch, roll, yaw, latitude, longitude, gpsAltitude, getDateTime());
-			  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		size = sprintf((char *)Data,"Temp:%d,Pressure:d,Altitude(BMP,m):%d,Pitch:%d,Roll:%d,Yaw:%d,Latitude:%d,Longitude:%d,Altitude(GPS,m):%d",
+				temp, pressure,pitch, roll, yaw, latitude, longitude, gpsAltitude);
+		HAL_UART_Transmit(&huart2, Data, size, 1000);
+		//getDateTime() not working?
 
-			  //myFile = SD_Open("example.txt", "wt");
-			  //fputs(msg, myFile);
-			  //fclose(myFile);
-			  XTENDSerial_print(msg);
+		//myFile = SD_Open("example.txt", "wt");
+		//fputs(msg, myFile);
+		//fclose(myFile);
+		XTENDSerial_print(msg);
 
-		osDelay(1);*/
+
+		osDelay(500);
 	}
 	//free(myFile);
 	/* USER CODE END StartTelemetry */
