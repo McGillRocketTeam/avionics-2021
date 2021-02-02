@@ -399,6 +399,8 @@ void setup() {
 		while (1);
 	} else {
 		int i;
+		size = sprintf((char *)Data, "Ejection Initialized\n");
+		HAL_UART_Transmit(&huart2, Data, size, 1000);
 		for (i = 0 ; i < 3; i++){
 			HAL_GPIO_WritePin(buzzer_GPIO_Port, buzzer_Pin, GPIO_PIN_RESET);
 			HAL_Delay(100);
@@ -455,7 +457,6 @@ void loop() {
 				HAL_Delay(drogue_delay);
 
 				/* This part is commented out because the original arduino code commented this part out as well
-
 				R11 = HAL_GIPO_ReadPin(in11_GPIO_Port, in11_Pin);
 				R12 = HAL_GIPO_ReadPin(in12_GPIO_Port, in12_Pin);
 				if(R11){
@@ -479,7 +480,6 @@ void loop() {
 			HAL_Delay(main_delay);
 
 			/* This part is commented out because the original arduino code commented this part out as well
-
 			R21 = HAL_GIPO_ReadPin(in21_GPIO_Port, in21_Pin);
 			R22 = HAL_GIPO_ReadPin(in22_GPIO_Port, in22_Pin);
 			if(R21){
@@ -613,9 +613,10 @@ void StartEjection(void *argument)
 {
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
+	setup();
+
 	for(;;)
 	{
-		setup();
 		loop();
 		osDelay(500);
 	}
@@ -633,9 +634,11 @@ void StartTelemetry(void *argument)
 {
 	/* USER CODE BEGIN StartTelemetry */
 	/* Infinite loop */
+	size = sprintf((char *)Data, "telemetry setup\n");
+	HAL_UART_Transmit(&huart2, Data, size, 1000);
 
 	//TODO Initialise serial (UART with specific baud rate and Wire.begin which idk)
-
+/*
 		char msg[500];
 
 		//TODO sensor initialisation
@@ -645,6 +648,7 @@ void StartTelemetry(void *argument)
 
 			sprintf(msg, "All sensor test\n");
 			HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
 
 			// Check BMP
 			  if (!bmp_Begin()) {
@@ -686,19 +690,20 @@ void StartTelemetry(void *argument)
 			  if(SD_Exist("example.txt")){
 			  	SD_remove("example.txt");
 			  }
-
+*/
 			  //myFile = SD_Open("example.txt", "wt");
 			  //fclose(myFile);
 
-			   if (! RTC_initialized()) {
-			     sprintf(msg, "RTC is NOT running!");
-			     HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+			   //if (! RTC_initialized()) {
+			     //sprintf(msg, "RTC is NOT running!");
+			     //HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 			     // following line sets the RTC to the date & time this sketch was compiled
-			     RTC_Adjust(/*TODO date and time format*/);
+			    // RTC_Adjust(/*TODO date and time format*/);
 			     // This line sets the RTC with an explicit date & time, for example to set
 			     // January 21, 2014 at 3am you would call:
 			     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-			   }
+			   //}
+
 
 
 			   /*TODO
@@ -707,8 +712,12 @@ void StartTelemetry(void *argument)
 
 
 
-	for(;;)
+	for (int i=0; i<30; i++)
+
 	{
+		size = sprintf((char *)Data, "telemetry loop\n");
+		HAL_UART_Transmit(&huart2, Data, size, 1000);
+/*
 		accel_x = bno_getAccelerometer_getX();
 			  accel_y = bno_getAccelerometer_getY();
 			  accel_z = bno_getAccelerometer_getZ();
@@ -740,7 +749,7 @@ void StartTelemetry(void *argument)
 			  //fclose(myFile);
 			  XTENDSerial_print(msg);
 
-		osDelay(1);
+		osDelay(1);*/
 	}
 	//free(myFile);
 	/* USER CODE END StartTelemetry */
