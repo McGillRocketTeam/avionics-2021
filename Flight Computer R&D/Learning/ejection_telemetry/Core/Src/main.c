@@ -712,7 +712,7 @@ void StartTelemetry(void *argument)
 
 
 
-	for (int i=0; i<30; i++)
+	for (;;)
 
 	{
 		size = sprintf((char *)Data, "telemetry loop\n");
