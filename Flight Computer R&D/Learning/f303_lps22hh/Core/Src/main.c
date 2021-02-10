@@ -22,6 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "lps22hh_reg.h"
+#include <stdio.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -32,6 +35,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define		TX_BUF_DIM		1000
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,6 +52,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+static uint8_t tx_buffer[TX_BUF_DIM];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,6 +67,10 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+extern stmdev_ctx_t lps22hh_init(void);
+extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
+extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
 
 /* USER CODE END 0 */
 
@@ -94,13 +106,26 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
+  stmdev_ctx_t dev_ctx_lps = lps22hh_init();
+  float pressure = 0;
+  float temperature = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	lps22hh_read_data_polling();
+//	lps22hh_read_data_polling();
+
+	get_pressure(dev_ctx_lps, &pressure);
+	get_temperature(dev_ctx_lps,  &temperature);
+
+	sprintf((char *)tx_buffer, "Pressure [hPa]:%hu\t Temperature [degC]:%hu\r\n", (uint16_t)pressure, (uint16_t)temperature);
+	HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer ), 1000);
+
+	HAL_Delay(1000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

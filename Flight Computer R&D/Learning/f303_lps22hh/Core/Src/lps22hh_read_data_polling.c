@@ -18,8 +18,6 @@
  ******************************************************************************
  */
 
-#define NUCLEO_F411RE    /* little endian */
-
 #define SENSOR_BUS hi2c1
 
 
@@ -34,15 +32,13 @@
 /* Private macro -------------------------------------------------------------*/
 #define    BOOT_TIME        5 //ms
 
-#define TX_BUF_DIM          1000
-
 /* Private variables ---------------------------------------------------------*/
 static uint32_t data_raw_pressure;
 static int16_t data_raw_temperature;
-static float pressure_hPa;
-static float temperature_degC;
+//static float pressure_hPa;
+//static float temperature_degC;
 static uint8_t whoamI, rst;
-static uint8_t tx_buffer[TX_BUF_DIM];
+
 
 /* Extern variables ----------------------------------------------------------*/
 
@@ -66,61 +62,131 @@ static void platform_init(void);
 
 /* Main Example --------------------------------------------------------------*/
 
-void lps22hh_read_data_polling(void)
-{
-  stmdev_ctx_t dev_ctx;
-  lps22hh_reg_t reg;
-  /* Initialize mems driver interface */
-  dev_ctx.write_reg = platform_write;
-  dev_ctx.read_reg = platform_read;
-  dev_ctx.handle = &SENSOR_BUS;
-  /* Initialize platform specific hardware */
-  platform_init();
-  /* Wait sensor boot time */
-  platform_delay(BOOT_TIME);
-  /* Check device ID */
-  whoamI = 0;
-  lps22hh_device_id_get(&dev_ctx, &whoamI);
+stmdev_ctx_t lps22hh_init(void){
+	stmdev_ctx_t dev_ctx;
 
-  if ( whoamI != LPS22HH_ID )
-    while (1); /*manage here device not found */
+	/* Initialize mems driver interface */
+	dev_ctx.write_reg = platform_write;
+	dev_ctx.read_reg = platform_read;
+	dev_ctx.handle = &SENSOR_BUS;
 
-  /* Restore default configuration */
-  lps22hh_reset_set(&dev_ctx, PROPERTY_ENABLE);
 
-  do {
-    lps22hh_reset_get(&dev_ctx, &rst);
-  } while (rst);
+	/* Wait sensor boot time */
+	platform_delay(BOOT_TIME);
 
-  /* Enable Block Data Update */
-  lps22hh_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
-  /* Set Output Data Rate */
-  lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
+	/* Check device ID */
+	whoamI = 0;
+	lps22hh_device_id_get(&dev_ctx, &whoamI);
 
-  /* Read samples in polling mode (no int) */
-  while (1) {
-    /* Read output only if new value is available */
-    lps22hh_read_reg(&dev_ctx, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+	if ( whoamI != LPS22HH_ID )
+	while (1); /*manage here device not found */
 
-    if (reg.status.p_da) {
-      memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
-      lps22hh_pressure_raw_get(&dev_ctx, &data_raw_pressure);
-      pressure_hPa = lps22hh_from_lsb_to_hpa( data_raw_pressure);
-      sprintf((char *)tx_buffer, "pressure [hPa]:%hu\r\n", (uint16_t)pressure_hPa);
-      tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
-    }
+	/* Restore default configuration */
+	lps22hh_reset_set(&dev_ctx, PROPERTY_ENABLE);
 
-    if (reg.status.t_da) {
-      memset(&data_raw_temperature, 0x00, sizeof(int16_t));
-      lps22hh_temperature_raw_get(&dev_ctx, &data_raw_temperature);
-      temperature_degC = lps22hh_from_lsb_to_celsius(
-                           data_raw_temperature );
-      sprintf((char *)tx_buffer, "temperature [degC]:%hu\r\n",
-    		  (uint16_t)temperature_degC );
-      tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
-    }
-  }
+	do {
+	lps22hh_reset_get(&dev_ctx, &rst);
+	} while (rst);
+
+	/* Enable Block Data Update */
+	lps22hh_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
+
+	/* Set Output Data Rate */
+	lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
+
+	return dev_ctx;
 }
+
+void get_pressure(stmdev_ctx_t dev_ctx, float *pressure){
+	/* Read output only if new value is available */
+	lps22hh_reg_t reg;
+	lps22hh_read_reg(&dev_ctx, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+
+	if (reg.status.p_da) {
+	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
+	  lps22hh_pressure_raw_get(&dev_ctx, &data_raw_pressure);
+//	  pressure_hPa = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+//	  sprintf((char *)tx_buffer, "pressure [hPa]:%hu\r\n", (uint16_t)pressure_hPa);
+//	  tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
+
+	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+	}
+}
+
+void get_temperature(stmdev_ctx_t dev_ctx, float *temperature){
+	/* Read output only if new value is available */
+	lps22hh_reg_t reg;
+	lps22hh_read_reg(&dev_ctx, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+
+	if (reg.status.t_da) {
+	  memset(&data_raw_temperature, 0x00, sizeof(int16_t));
+	  lps22hh_temperature_raw_get(&dev_ctx, &data_raw_temperature);
+//	  temperature_degC = lps22hh_from_lsb_to_celsius(
+//						   data_raw_temperature );
+//	  sprintf((char *)tx_buffer, "temperature [degC]:%hu\r\n",
+//			  (uint16_t)temperature_degC );
+//	  tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
+
+	  *temperature = lps22hh_from_lsb_to_celsius(data_raw_temperature);
+	}
+}
+
+
+//void lps22hh_read_data_polling(void)
+//{
+//  stmdev_ctx_t dev_ctx;
+//  lps22hh_reg_t reg;
+//  /* Initialize mems driver interface */
+//  dev_ctx.write_reg = platform_write;
+//  dev_ctx.read_reg = platform_read;
+//  dev_ctx.handle = &SENSOR_BUS;
+//  /* Initialize platform specific hardware */
+//  platform_init();
+//  /* Wait sensor boot time */
+//  platform_delay(BOOT_TIME);
+//  /* Check device ID */
+//  whoamI = 0;
+//  lps22hh_device_id_get(&dev_ctx, &whoamI);
+//
+//  if ( whoamI != LPS22HH_ID )
+//    while (1); /*manage here device not found */
+//
+//  /* Restore default configuration */
+//  lps22hh_reset_set(&dev_ctx, PROPERTY_ENABLE);
+//
+//  do {
+//    lps22hh_reset_get(&dev_ctx, &rst);
+//  } while (rst);
+//
+//  /* Enable Block Data Update */
+//  lps22hh_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
+//  /* Set Output Data Rate */
+//  lps22hh_data_rate_set(&dev_ctx, LPS22HH_10_Hz_LOW_NOISE);
+//
+//  /* Read samples in polling mode (no int) */
+//  while (1) {
+//    /* Read output only if new value is available */
+//    lps22hh_read_reg(&dev_ctx, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+//
+//    if (reg.status.p_da) {
+//      memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
+//      lps22hh_pressure_raw_get(&dev_ctx, &data_raw_pressure);
+//      pressure_hPa = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+//      sprintf((char *)tx_buffer, "pressure [hPa]:%hu\r\n", (uint16_t)pressure_hPa);
+//      tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
+//    }
+//
+//    if (reg.status.t_da) {
+//      memset(&data_raw_temperature, 0x00, sizeof(int16_t));
+//      lps22hh_temperature_raw_get(&dev_ctx, &data_raw_temperature);
+//      temperature_degC = lps22hh_from_lsb_to_celsius(
+//                           data_raw_temperature );
+//      sprintf((char *)tx_buffer, "temperature [degC]:%hu\r\n",
+//    		  (uint16_t)temperature_degC );
+//      tx_com( tx_buffer, strlen( (char const *)tx_buffer ) );
+//    }
+//  }
+//}
 
 /*
  * @brief  Write generic device register (platform dependent)
@@ -168,10 +234,10 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
  * @param  len           number of byte to send
  *
  */
-static void tx_com(uint8_t *tx_buffer, uint16_t len)
-{
-  HAL_UART_Transmit(&huart2, tx_buffer, len, 1000);
-}
+//static void tx_com(uint8_t *tx_buffer, uint16_t len)
+//{
+//  HAL_UART_Transmit(&huart2, tx_buffer, len, 1000);
+//}
 
 /*
  * @brief  platform specific delay (platform dependent)
@@ -184,10 +250,3 @@ static void platform_delay(uint32_t ms)
   HAL_Delay(ms);
 }
 
-/*
- * @brief  platform specific initialization (platform dependent)
- */
-static void platform_init(void)
-{
-
-}
