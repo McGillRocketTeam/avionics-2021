@@ -23,7 +23,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "FreeRTOS.h"
+#include "queue.h"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,11 +57,16 @@ const osThreadAttr_t queue01_attributes = {
 osThreadId_t queue02Handle;
 const osThreadAttr_t queue02_attributes = {
   .name = "queue02",
-  .priority = (osPriority_t) osPriorityBelowNormal7,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for myQueue01 */
+osMessageQueueId_t myQueue01Handle;
+const osMessageQueueAttr_t myQueue01_attributes = {
+  .name = "myQueue01"
+};
 /* USER CODE BEGIN PV */
-osMessageQueueId_t queue = NULL;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,8 +133,13 @@ int main(void)
 	/* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of myQueue01 */
+  myQueue01Handle = osMessageQueueNew (16, sizeof(uint16_t), &myQueue01_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
+
 
   /* USER CODE END RTOS_QUEUES */
 
@@ -289,23 +302,13 @@ void ManageQueue01(void *argument)
 	/* Infinite loop */
 	char msg[1000];
 
-	if (queue == NULL) {
-		queue = osMessageQueueNew((uint32_t) 10, (uint32_t) 8, NULL);
-		sprintf(msg, "Here INIT\n");
-		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-	}
-
+	sprintf(msg, "Start send\n");
+	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
-		char *in = "Me";
-		char *in2 = "Yu";
-
-		osMessageQueuePut(queue, in, (uint8_t) 0, (uint32_t) 0U);
-		osMessageQueuePut(queue, in2, (uint8_t) 0, (uint32_t) 0U);
 
 		sprintf(msg, "Here\n");
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-
-		osDelay(1000);
+		osThreadYield();
 	}
   /* USER CODE END 5 */
 }
@@ -322,23 +325,14 @@ void ManageQueue02(void *argument)
   /* USER CODE BEGIN ManageQueue02 */
 	/* Infinite loop */
 	char msg[1000];
-	char out[100];
 
-	if (queue == NULL) {
-		queue = osMessageQueueNew((uint32_t) 10, (uint32_t) 8, NULL);
-		sprintf(msg, "There INIT\n");
-	} else {
-		sprintf(msg, "There non-init\n");
-	}
-	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-
+	sprintf(msg, "Start receive\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
 
-		osMessageQueueGet(queue, out, NULL, 0U);
-		sprintf(msg, "There is %s\n", out);
-		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg),HAL_MAX_DELAY);
-
-		osDelay(500);
+		sprintf(msg, "There\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+		osThreadYield();
 	}
   /* USER CODE END ManageQueue02 */
 }
