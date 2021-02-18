@@ -301,13 +301,25 @@ void ManageQueue01(void *argument)
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
 	char msg[1000];
+	uint16_t number = 0;
+	sprintf(msg, "Start get\n");
 
-	sprintf(msg, "Start send\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
+		osMessageQueueGet(myQueue01Handle, &number, NULL, 0);
 
-		sprintf(msg, "Here\n");
+		if(number == 310){
+			sprintf(msg, "Here %hu\n", number);
+		}else{
+			sprintf(msg, "Oups\n");
+		}
+
+
+
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+
+
+
 		osThreadYield();
 	}
 	/*
@@ -347,12 +359,16 @@ void ManageQueue02(void *argument)
 	/* USER CODE BEGIN ManageQueue02 */
 	/* Infinite loop */
 	char msg[1000];
+	uint16_t number;
 
-	sprintf(msg, "Start receive\n");
+	sprintf(msg, "Start put\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
 
 		sprintf(msg, "There\n");
+		number = 310;
+		osMessageQueuePut(myQueue01Handle, &number, 0, 100);
+
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 		osThreadYield();
 	}
@@ -378,7 +394,6 @@ void ManageQueue02(void *argument)
 
 	/* USER CODE END ManageQueue02 */
 }
-
 /**
  * @brief  Period elapsed callback in non blocking mode
  * @note   This function is called  when TIM6 interrupt took place, inside
