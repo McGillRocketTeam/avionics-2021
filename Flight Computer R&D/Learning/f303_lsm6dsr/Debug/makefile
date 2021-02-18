@@ -46,8 +46,8 @@ f303_lsm6dsr.bin \
 all: f303_lsm6dsr.elf secondary-outputs
 
 # Tool invocations
-f303_lsm6dsr.elf: $(OBJS) $(USER_OBJS) C:\Users\holyc\Documents\MRT\Flight\ Computer\ RnD\Tuts\f303_lsm6dsr\STM32F303RETX_FLASH.ld
-	arm-none-eabi-gcc -o "f303_lsm6dsr.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\holyc\Documents\MRT\Flight Computer RnD\Tuts\f303_lsm6dsr\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_lsm6dsr.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+f303_lsm6dsr.elf: $(OBJS) $(USER_OBJS) C:\Users\holyc\dev\avionics-2021\Flight\ Computer\ R&D\Learning\f303_lsm6dsr\STM32F303RETX_FLASH.ld
+	arm-none-eabi-gcc -o "f303_lsm6dsr.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\holyc\dev\avionics-2021\Flight Computer R&D\Learning\f303_lsm6dsr\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_lsm6dsr.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
