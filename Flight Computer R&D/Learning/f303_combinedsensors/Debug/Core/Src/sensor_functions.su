@@ -1,0 +1,11 @@
+sensor_functions.c:59:14:lsm6dsr_init	40	static
+sensor_functions.c:107:6:get_acceleration	40	static
+sensor_functions.c:128:6:get_angvelocity	40	static
+sensor_functions.c:148:14:lps22hh_init	40	static
+sensor_functions.c:183:6:get_pressure	40	static
+sensor_functions.c:194:6:get_temperature	40	static
+sensor_functions.c:219:16:lsm6dsr_write	40	static
+sensor_functions.c:240:16:lsm6dsr_read	40	static
+sensor_functions.c:260:16:lps22hh_write	40	static
+sensor_functions.c:280:16:lps22hh_read	40	static
+sensor_functions.c:296:13:platform_delay	16	static

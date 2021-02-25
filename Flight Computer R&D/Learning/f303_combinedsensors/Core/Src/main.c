@@ -22,9 +22,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 #include "lsm6dsr_reg.h"
+#include "lps22hh_reg.h"
 
 /* USER CODE END Includes */
 
@@ -35,7 +36,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
 #define		TX_BUF_DIM		1000
 
 /* USER CODE END PD */
@@ -47,11 +47,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
 static uint8_t tx_buffer[TX_BUF_DIM];
 
 /* USER CODE END PV */
@@ -67,9 +65,16 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// LSM6DSR functions
 extern stmdev_ctx_t lsm6dsr_init(void);
 extern void get_acceleration(stmdev_ctx_t dev_ctx, float *acceleration_mg);
 extern void get_angvelocity(stmdev_ctx_t dev_ctx, float *angular_rate_mdps);
+
+// LPS22HH functions
+extern stmdev_ctx_t lps22hh_init(void);
+extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
+extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
 
 /* USER CODE END 0 */
 
@@ -104,24 +109,35 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  stmdev_ctx_t dev_ctx_lps = lsm6dsr_init();
+
+  // Initialize sensors
+  stmdev_ctx_t dev_ctx_lsm = lsm6dsr_init();
+  stmdev_ctx_t dev_ctx_lps = lps22hh_init();
+
+  // Variables to store converted sensor data
   float acceleration[] = {0, 0, 0};
   float angular_rate[]= {0, 0, 0};
+  float pressure = 0;
+  float temperature = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	lsm6dsr_read_data_polling();
-	get_acceleration(dev_ctx_lps, acceleration);
-	get_angvelocity(dev_ctx_lps, angular_rate);
 
-	sprintf((char *)tx_buffer, "Acceleration [mg]:%hu\t%hu\t%hu\r\nAngular rate [mdps]:%hu\t%hu\t%hu\r\n",
+	get_acceleration(dev_ctx_lsm, acceleration);
+	get_angvelocity(dev_ctx_lsm, angular_rate);
+	get_pressure(dev_ctx_lps, &pressure);
+	get_temperature(dev_ctx_lps,  &temperature);
+
+	sprintf((char *)tx_buffer, "Acceleration [mg]:%hu\t%hu\t%hu\r\nAngular rate [mdps]:%hu\t%hu\t%hu\r\nPressure [hPa]:%hu\t Temperature [degC]:%hu\r\n",
 						  (uint16_t)acceleration[0], (uint16_t)acceleration[1], (uint16_t)acceleration[2],
-						  (uint16_t)angular_rate[0], (uint16_t)angular_rate[1], (uint16_t)angular_rate[2]);
-
+						  (uint16_t)angular_rate[0], (uint16_t)angular_rate[1], (uint16_t)angular_rate[2],
+						  (uint16_t)pressure, (uint16_t)temperature);
 	HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer ), 1000);
+
 
 	HAL_Delay(1000);
 
