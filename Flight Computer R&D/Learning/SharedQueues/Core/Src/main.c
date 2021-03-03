@@ -51,14 +51,14 @@ osThreadId_t queue01Handle;
 const osThreadAttr_t queue01_attributes = {
 		.name = "queue01",
 		.priority = (osPriority_t) osPriorityNormal,
-		.stack_size = 128 * 4
+		.stack_size = 2048
 };
 /* Definitions for queue02 */
 osThreadId_t queue02Handle;
 const osThreadAttr_t queue02_attributes = {
 		.name = "queue02",
 		.priority = (osPriority_t) osPriorityNormal,
-		.stack_size = 128 * 4
+		.stack_size = 512
 };
 /* Definitions for myQueue01 */
 osMessageQueueId_t myQueue01Handle;
@@ -301,20 +301,13 @@ void ManageQueue01(void *argument)
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
 	char msg[1000];
-	uint16_t number = 0;
-	sprintf(msg, "Start get\n");
+	uint16_t number ;
+	//sprintf(msg, "Start get\n");
 
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
 		osMessageQueueGet(myQueue01Handle, &number, NULL, 0);
-
-		if(number == 310){
-			sprintf(msg, "Here %hu\n", number);
-		}else{
-			sprintf(msg, "Oups\n");
-		}
-
-
+		sprintf(msg, "Receive value: number =  %hu\n", number);
 
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 
@@ -322,29 +315,7 @@ void ManageQueue01(void *argument)
 
 		osThreadYield();
 	}
-	/*
-	_Message msg;
-	msg.buf[0] = 0xAA;
-	msg.buf[1] = 0xBB;
-	msg.idx = 0;
 
-	for (;;)
-	{
-		printf("Sender enqueues\n");
-		osMessagePut(Queue1Handle, &msg, 100); //enqueue
-		msg.idx++;
-		printf("Sender delays for a sec.\n");
-		osDelay(1000);
-	}
-
-	https://blog.naver.com/PostView.nhn?blogId=eziya76&logNo=221832659123
-	*/
-
-
-
-
-
-	/* USER CODE END 5 */
 }
 
 /* USER CODE BEGIN Header_ManageQueue02 */
@@ -361,36 +332,20 @@ void ManageQueue02(void *argument)
 	char msg[1000];
 	uint16_t number;
 
-	sprintf(msg, "Start put\n");
+	//sprintf(msg, "Start put\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 	for (;;) {
 
-		sprintf(msg, "There\n");
-		number = 310;
+		number =310;
+		sprintf(msg, "Put value: number =  %hu\n", number);
+
 		osMessageQueuePut(myQueue01Handle, &number, 0, 100);
 
+
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+
 		osThreadYield();
 	}
-
-	/*
-	 *
-	 _Message *pMsg;
-	osEvent retVal;
-
-	for (;;)
-	{
-		printf("Receiver is trying to dequeue\n");
-		retVal = osMessageGet(Queue1Handle, 500); //dequeue
-		if(retVal.status == osEventMessage)
-		{
-			pMsg = retVal.value.p;
-			printf("Receiver received: msg.buf[0]=0x%X, msg.idx=%u\n", pMsg->buf[0]  , pMsg->idx);
-		}
-	}
-
-	 * */
-
 
 	/* USER CODE END ManageQueue02 */
 }
