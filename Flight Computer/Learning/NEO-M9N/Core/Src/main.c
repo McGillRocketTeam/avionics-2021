@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "gps.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -53,6 +52,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART3_UART_Init(void);
+void GPS_Poll(float*, float*, float*);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -94,16 +94,22 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  float latitude;
+  float longitude;
+  float time;
+
+  char buffer[100];
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	GPS_Poll();
-	GPS_UART_Process();
-	HAL_Delay(100);
-	//HAL_UART_Transmit(&huart3, myTxData, 2, 100);
+	GPS_Poll(&latitude, &longitude, &time);
+	sprintf(buffer, "(Latitude, Longitude): %f,%f   (Time): %f\n", latitude, longitude, time);
+	HAL_UART_Transmit(&huart3, (uint8_t*)&buffer, 100, 100);
+	memset(buffer, 0, sizeof(buffer));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -205,7 +211,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 9600;
+  huart3.Init.BaudRate = 38400;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;

@@ -39,7 +39,8 @@
 #include <usbd_cdc_if.h>
 #endif
 
-uint8_t rx_buffer[79];
+uint8_t rx_buffer[100];
+uint8_t rx_current = 0;
 uint8_t rx_index = 0;
 
 GPS_t GPS;
@@ -52,24 +53,33 @@ void GPS_print(char *data){
 }
 #endif
 
-void GPS_Poll()
+void GPS_Poll(float *latitude, float *longitude, float *time)
 {
-	HAL_UART_Receive(GPS_USART, &rx_buffer, 79, 100);
-	HAL_UART_Transmit(&huart3, &rx_buffer, 79, 100);
+	uint16_t max_loop_count = 2000;
+	uint16_t loop_count = 0;
+	int done = 0;
+	while(loop_count < max_loop_count && !done){
+		HAL_UART_Receive(GPS_USART, (uint8_t*)&rx_current, 1, 100);
+		//HAL_UART_Transmit(&huart3, (uint8_t*)&rx_current, 1, 100);
+		if (rx_current != '\n' && rx_index < sizeof(rx_buffer)) {
+			rx_buffer[rx_index++] = rx_current;
+		} else {
+			if(GPS_validate((char*) rx_buffer)){
+				if(GPS_parse((char*) rx_buffer)){
+					*latitude = GPS.dec_latitude;
+					*longitude = GPS.dec_longitude;
+					*time = GPS.utc_time;
+					done = 1;
+				}
+			}
+			rx_index = 0;
+			memset(rx_buffer, 0, sizeof(rx_buffer));
+		}
+		__HAL_UART_CLEAR_FLAG(&huart1, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
+		loop_count++;
+	}
+
 }
-
-
-void GPS_UART_Process(){
-		#if (GPS_DEBUG == 1)
-		GPS_print((char*)rx_buffer);
-		#endif
-
-		if(GPS_validate((char*) rx_buffer))
-			GPS_parse((char*) rx_buffer);
-		//rx_index = 0;
-		//memset(rx_buffer, 0, sizeof(rx_buffer));
-}
-
 
 int GPS_validate(char *nmeastr){
     char check[3];
@@ -81,16 +91,18 @@ int GPS_validate(char *nmeastr){
     calculated_check=0;
 
     // check to ensure that the string starts with a $
-    while(nmeastr[i] != '$' && i < 79){
-    	i++;
-    }
+    if(nmeastr[i] == '$')
+        i++;
+    else
+        return 0;
+
     //No NULL reached, 75 char largest possible NMEA message, no '*' reached
-    while((nmeastr[i] != 0) && (nmeastr[i] != '*') && (i < 79)){
+    while((nmeastr[i] != 0) && (nmeastr[i] != '*') && (i < 75)){
         calculated_check ^= nmeastr[i];// calculate the checksum
         i++;
     }
 
-    if(i >= 79){
+    if(i >= 75){
         return 0;// the string was too long so return an error
     }
 
@@ -107,28 +119,36 @@ int GPS_validate(char *nmeastr){
         && (checkcalcstr[1] == check[1])) ? 1 : 0 ;
 }
 
-void GPS_parse(char *GPSstrParse){
-	HAL_UART_Transmit(&huart3, &rx_buffer, 79, 100);
-    if(!strncmp(GPSstrParse, "$GPGGA", 6)){
-    	if (sscanf(GPSstrParse, "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.lock, &GPS.satelites, &GPS.hdop, &GPS.msl_altitude, &GPS.msl_units) >= 1){
+int GPS_parse(char *GPSstrParse){
+    if(!strncmp(GPSstrParse, "$GNGGA", 6)){
+    	if (sscanf(GPSstrParse, "$GNGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.lock, &GPS.satelites, &GPS.hdop, &GPS.msl_altitude, &GPS.msl_units) >= 1){
     		GPS.dec_latitude = GPS_nmea_to_dec(GPS.nmea_latitude, GPS.ns);
     		GPS.dec_longitude = GPS_nmea_to_dec(GPS.nmea_longitude, GPS.ew);
-    		return;
+    		return 1;
     	}
     }
-    else if (!strncmp(GPSstrParse, "$GPRMC", 6)){
-    	if(sscanf(GPSstrParse, "$GPRMC,%f,%f,%c,%f,%c,%f,%f,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.course_d, &GPS.date) >= 1)
-    		return;
+    else if (!strncmp(GPSstrParse, "$GNRMC", 6)){
+    	if(sscanf(GPSstrParse, "$GNRMC,%f,%f,%c,%f,%c,%f,%f,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.course_d, &GPS.date) >= 1){
+    		GPS.dec_latitude = GPS_nmea_to_dec(GPS.nmea_latitude, GPS.ns);
+    		GPS.dec_longitude = GPS_nmea_to_dec(GPS.nmea_longitude, GPS.ew);
+    		return 1;
+    	}
+
 
     }
-    else if (!strncmp(GPSstrParse, "$GPGLL", 6)){
-        if(sscanf(GPSstrParse, "$GPGLL,%f,%c,%f,%c,%f,%c", &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.utc_time, &GPS.gll_status) >= 1)
-        	return;
+    else if (!strncmp(GPSstrParse, "$GNGLL", 6)){
+        if(sscanf(GPSstrParse, "$GNGLL,%f,%c,%f,%c,%f,%c", &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.utc_time, &GPS.gll_status) >= 1){
+        	GPS.dec_latitude = GPS_nmea_to_dec(GPS.nmea_latitude, GPS.ns);
+        	GPS.dec_longitude = GPS_nmea_to_dec(GPS.nmea_longitude, GPS.ew);
+        	return 1;
+        }
+
     }
-    else if (!strncmp(GPSstrParse, "$GPVTG", 6)){
-        if(sscanf(GPSstrParse, "$GPVTG,%f,%c,%f,%c,%f,%c,%f,%c", &GPS.course_t, &GPS.course_t_unit, &GPS.course_m, &GPS.course_m_unit, &GPS.speed_k, &GPS.speed_k_unit, &GPS.speed_km, &GPS.speed_km_unit) >= 1)
-        	return;
+    else if (!strncmp(GPSstrParse, "$GNVTG", 6)){
+        if(sscanf(GPSstrParse, "$GNVTG,%f,%c,%f,%c,%f,%c,%f,%c", &GPS.course_t, &GPS.course_t_unit, &GPS.course_m, &GPS.course_m_unit, &GPS.speed_k, &GPS.speed_k_unit, &GPS.speed_km, &GPS.speed_km_unit) >= 1)
+            return 0;
     }
+    return 0;
 }
 
 float GPS_nmea_to_dec(float deg_coord, char nsew) {
