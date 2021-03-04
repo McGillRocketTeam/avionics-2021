@@ -550,7 +550,7 @@ void startTelemetry(void *argument)
 
     // TODO: Queue stuff here
 
-	real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
+	real_altitude = 44330 * (1.0 - pow(pressure / LOCAL_PRESSURE, 0.190295));
 
 	// TODO: Replace this with actual variables
 //	sprintf((char *)tx_buffer,"Temp:%d,Pressure:d,Altitude(BMP,m):%d,Pitch:%d,Roll:%d,Yaw:%d,Latitude:%d,Longitude:%d,Altitude(GPS,m):%d",
