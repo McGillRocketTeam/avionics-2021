@@ -3,7 +3,7 @@
   <FileVersion>3.0</FileVersion>
   <Workspace>
     <WorkspaceType>Single-project</WorkspaceType>
-    <WorkspacePath>C:\Users\SlinderKid\Documents\MRT - Project Files\SharedQueues\</WorkspacePath>
+    <WorkspacePath>C:\Users\SlinderKid\Desktop\McGill\00 - MRT\avionics-2021\Flight Computer\Learning\SharedQueues\</WorkspacePath>
     <underRoot>true</underRoot>
     <TrustZone>0</TrustZone>
     <HAL_Driver>C:\Users\SlinderKid\STM32Cube\Repository\STM32Cube_FW_F3_V1.11.2\</HAL_Driver>
