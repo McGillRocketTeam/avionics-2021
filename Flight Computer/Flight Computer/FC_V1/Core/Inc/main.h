@@ -84,6 +84,24 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
+#define		TX_BUF_DIM				1000
+#define		LOCAL_PRESSURE			101200		// hPa (Sea level)
+#define		MAIN_DEPLOYMENT			1500		// ft
+#define		THRESHOLD_ALTITUDE		10000		// ft
+#define		DROGUE_DELAY			500			// ms (Time that drogue is HIGH)
+#define		MAIN_DELAY				500			// ms (Time that main is HIGH)
+#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1 (idk why 1 but there it is)
+#define		LANDING_THRESHOLD		1			// Change in altitude to detect landing
+#define		DROGUE_DEPLOYMENT_VEL	10
+
+// Configurations
+#define		BUZZER_FREQ			3750		// Hz (Buzzer sound frequency)
+#define		NUM_MEAS_AVGING		100			// (Number of historic measurements for averaging)
+#define		ALT_MEAS_AVGING		500
+
+extern float alt_meas;
+extern float alt_ground;
+
 extern I2C_HandleTypeDef hi2c1;
 extern UART_HandleTypeDef huart2;
 

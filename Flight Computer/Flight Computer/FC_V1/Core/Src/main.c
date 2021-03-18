@@ -29,6 +29,7 @@
 #include <string.h>
 #include "lsm6dsr_reg.h"
 #include "lps22hh_reg.h"
+#include "ejection.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,21 +42,10 @@ typedef StaticQueue_t osStaticMessageQDef_t;
 /* USER CODE BEGIN PD */
 
 // ---------- COMMENT THESE OUT AS NEEDED ---------- //
-#define		DEBUG_MODE
+//#define		DEBUG_MODE
 //#define		TRANSMIT_RADIO
 // ------------------------------------------------- //
 
-#define		TX_BUF_DIM			1000
-#define		LOCAL_PRESSURE		101200		// hPa (Sea level)
-#define		MAIN_DEPLOYMENT		1500		// ft
-#define		THRESHOLD_ALTITUDE	10000		// ft
-#define		DROGUE_DELAY		500			// ms (Time that drogue is HIGH)
-#define		MAIN_DELAY			500			// ms (Time that main is HIGH)
-
-// Configurations
-#define		BUZZER_FREQ			3750		// Hz (Buzzer sound frequency)
-#define		NUM_MEAS_AVGING		10			// (Number of historic measurements for averaging)
-#define		ALT_MEAS_AVGING		500
 
 /* USER CODE END PD */
 
@@ -100,10 +90,7 @@ static uint8_t tx_buffer[TX_BUF_DIM];
 // Ejection Variables
 float alt_meas;
 float alt_ground = 0;
-float a = 1;					// Hz (Cutoff frequency of low-pass filter)
-float T;						// sampling period, time of each loop
-float alt_previous[NUM_MEAS_AVGING];
-float vel_previous[NUM_MEAS_AVGING];
+//float a = 1;					// Hz (Cutoff frequency of low-pass filter)
 //float alt_filtered;
 float t_previous_loop, t_previous_buzz;
 float average_gradient;
@@ -459,25 +446,59 @@ static void MX_GPIO_Init(void)
 void startEjection(void *argument)
 {
 	/* USER CODE BEGIN 5 */
+	osDelay(1000);
 	uint16_t real_altitude = 0;
+	uint32_t currTick;
+	float alt_filtered = 0;
+
 #ifndef DEBUG_MODE
-	// ---------- Get sea-level pressure ----------
+	// ---------- Get ground-level pressure and set as bias ----------
 	for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
 		osMessageQueueGet(myQueue01Handle, &real_altitude, NULL, 0);
 		alt_ground += real_altitude;
 	}
-	//
-	//	alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
-	//	a = 2 * 3.14159 * a;
-	//
-	//	float alt_filtered = 0;
-	//	while(alt_filtered < 150){							// Waiting to launch
-	////	    alt_filtered = runMeasurements();
-	////	    printValues(alt_filtered);
-	//	    osDelay(50);
-	//	}
+	alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
-	// TODO: Fix ejection code
+	// ---------- Waiting for launch ----------
+	// TODO: Replace 150 by the actual value
+	while(alt_filtered < 150){							// Waiting to launch
+		currTick = xTaskGetTickCount();
+		alt_filtered = runAltitudeMeasurements(currTick, real_altitude);
+//      (print for test)
+//		char msg[1000];
+//	    sprintf(msg, "Filtered Alt =  %hu\n", alt_filtered);
+//	    HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+	    osDelay(50);
+	}
+
+	// ---------- Launched -> Wait for apogee ----------
+	while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE) // while moving up and hasn't reached threshold altitude yet
+	{
+		currTick = xTaskGetTickCount();
+		alt_filtered = runAltitudeMeasurements(currTick, real_altitude);
+		osDelay(5);
+	}
+
+	// ---------- At apogee -> Deploy drogue ----------
+	// TODO: Modify code to actually deploy both relays
+	HAL_GPIO_WritePin(Relay_Drogue_GPIO_Port, Relay_Drogue_Pin, GPIO_PIN_SET);
+	osDelay(DROGUE_DELAY);
+	HAL_GPIO_WritePin(Relay_Drogue_GPIO_Port, Relay_Drogue_Pin, GPIO_PIN_RESET);
+
+	// ---------- Wait for main deployment altitude ----------
+	while (alt_filtered > MAIN_DEPLOYMENT){
+		currTick = xTaskGetTickCount();
+		alt_filtered = runAltitudeMeasurements(currTick, real_altitude);
+		osDelay(5);
+	}
+
+	// ---------- At main deployment altitude -> Deploy main ----------
+	// TODO: Modify code to actually deploy both relays
+	HAL_GPIO_WritePin(Relay_Main_GPIO_Port, Relay_Main_Pin, GPIO_PIN_SET);
+	osDelay(MAIN_DELAY);
+	HAL_GPIO_WritePin(Relay_Main_GPIO_Port, Relay_Main_Pin, GPIO_PIN_RESET);
+
+	// TODO: Test ejection code
 	// TODO: terminate thread here
 
 #endif
@@ -514,7 +535,7 @@ void startTelemetry(void *argument)
 
 	for (;;) {
 
-		osDelay(1000);
+		osDelay(50);
 
 		// ---------- Get sensor data ----------
 //		get_acceleration(dev_ctx_lsm, acceleration);
@@ -537,8 +558,9 @@ void startTelemetry(void *argument)
 		// ---------- Put pressure data on message queue ----------
 		osMessageQueuePut(myQueue01Handle, &real_altitude, 0, 100);
 
-#ifdef DEBUG_MODE
+
 		// ---------- (Print to serial for debugging) ----------
+#ifdef DEBUG_MODE
 		 char msg[1000];
 		 sprintf(msg, "Send altitude =  %hu\n", real_altitude);
 		 HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
