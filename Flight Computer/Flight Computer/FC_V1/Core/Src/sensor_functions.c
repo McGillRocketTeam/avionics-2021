@@ -187,6 +187,7 @@ void get_pressure(stmdev_ctx_t dev_ctx_lps22hh, float *pressure){
 
 	if (reg.status.p_da) {
 	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
+	  lps22hh_pressure_raw_get(&dev_ctx_lps22hh, &data_raw_pressure);
 	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
 	}
 }

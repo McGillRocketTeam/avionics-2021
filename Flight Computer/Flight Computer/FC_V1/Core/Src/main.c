@@ -39,6 +39,12 @@ typedef StaticQueue_t osStaticMessageQDef_t;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+// ---------- COMMENT THESE OUT AS NEEDED ---------- //
+#define		DEBUG_MODE
+//#define		TRANSMIT_RADIO
+// ------------------------------------------------- //
+
 #define		TX_BUF_DIM			1000
 #define		LOCAL_PRESSURE		101200		// hPa (Sea level)
 #define		MAIN_DEPLOYMENT		1500		// ft
@@ -97,7 +103,8 @@ float alt_ground = 0;
 float a = 1;					// Hz (Cutoff frequency of low-pass filter)
 float T;						// sampling period, time of each loop
 float alt_previous[NUM_MEAS_AVGING];
-float alt_filtered;
+float vel_previous[NUM_MEAS_AVGING];
+//float alt_filtered;
 float t_previous_loop, t_previous_buzz;
 float average_gradient;
 
@@ -105,18 +112,26 @@ uint8_t apogee_reached = 0;
 uint8_t launched = 0;
 uint8_t main_deployed = 0;
 
+long time11;
+long time12;
+long time21;
+long time22;
+
 // Telemetry Variables
-float real_altitude;
+//float real_altitude;
 //uint8_t relay_check_drogue1;
 //uint8_t relay_check_drogue2;
 //uint8_t relay_check_main1;
 //uint8_t relay_check_main2;
+stmdev_ctx_t dev_ctx_lsm;
+stmdev_ctx_t dev_ctx_lps;
 
 // Variables to store converted sensor data
 float acceleration[] = {0, 0, 0};
 float angular_rate[]= {0, 0, 0};
 float pressure = 0;
 float temperature = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -183,8 +198,10 @@ int main(void)
 	HAL_GPIO_WritePin(Relay_Main_GPIO_Port, Relay_Main_Pin, GPIO_PIN_RESET);
 
 	// Initialize sensors
-	//stmdev_ctx_t dev_ctx_lsm = lsm6dsr_init();
-	//stmdev_ctx_t dev_ctx_lps = lps22hh_init();
+	// TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer and light LED. Else, do smth)
+	// dev_ctx_lsm = lsm6dsr_init();
+	dev_ctx_lps = lps22hh_init();
+
 	/* USER CODE END 2 */
 
 	/* Init scheduler */
@@ -442,99 +459,42 @@ static void MX_GPIO_Init(void)
 void startEjection(void *argument)
 {
 	/* USER CODE BEGIN 5 */
-	/* Infinite loop */
-	char msg[1000];
 	uint16_t real_altitude = 0;
-
-	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-
-	// TODO: Add buzzer sound here
-
-	// Get sea-level pressure
+#ifndef DEBUG_MODE
+	// ---------- Get sea-level pressure ----------
 	for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
-		//	  alt_ground += bme.readAltitude(LOCAL_PRESSURE/100); (arduino code)
-		alt_ground += 1;								// TODO: Replace 1 here by actual sensor reading fct from queue
+		osMessageQueueGet(myQueue01Handle, &real_altitude, NULL, 0);
+		alt_ground += real_altitude;
 	}
+	//
+	//	alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
+	//	a = 2 * 3.14159 * a;
+	//
+	//	float alt_filtered = 0;
+	//	while(alt_filtered < 150){							// Waiting to launch
+	////	    alt_filtered = runMeasurements();
+	////	    printValues(alt_filtered);
+	//	    osDelay(50);
+	//	}
 
-	alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of alt readings
+	// TODO: Fix ejection code
+	// TODO: terminate thread here
+
+#endif
 
 	/* Infinite loop */
 	for(;;)
 	{
-		//TODO: Fix ejection code
-
-		/*
-		if (main_deployed == 0){
-
-
-			T = (HAL_GetTick() - t_previous_loop)/1000; // HAL_GetTick() = time since program start running T running time of curr loop (s)
-			t_previous_loop = HAL_GetTick(); 			// Total time
-
-			//		alt_meas = (bme.readAltitude(LOCAL_PRESSURE/100) - alt_ground)*3.28084; //Measures AGL altitude in feet ARDUINO
-			alt_meas = 0;		// TODO: Replace 0 by sensor measurement
-
-			// Low-pass filter - rocket at high speeds pressure fluctuates and affects altitude reading, usually at a high frequency, so low pass filter filters those high freuqency changes out
-			// and keeps just the overall, low frequency changes (caused by altitude change)
-			a = 2 * 3.14159 * a;
-			alt_filtered = (1 - T * a) * alt_previous[NUM_MEAS_AVGING-1] + a * T * alt_meas;
-
-			// Slide window of 10 measurement history.
-			for (int i = 0; i < NUM_MEAS_AVGING-1; i++){
-				alt_previous[i] = alt_previous[i+1];
-			}
-			alt_previous[NUM_MEAS_AVGING-1] = alt_filtered;
-
-			// Launch Detection
-			if (alt_filtered > 150 && launched == 0){
-				launched = 1;
-			}
-
-			// Average gradient of 10 past measurements.
-			average_gradient = 0;
-			for (int i = 0; i < NUM_MEAS_AVGING-1; i++){
-				average_gradient += (alt_previous[i+1]- alt_previous[i]);
-			}
-
-			if (T>0){
-				average_gradient /= (NUM_MEAS_AVGING);
-			}
-
-			// Apogee detection
-			if (alt_filtered > THRESHOLD_ALTITUDE && launched && apogee_reached == 0){
-
-				if (average_gradient < -2){ //what is the purpose of this -2?
-					apogee_reached = 1;
-					HAL_GPIO_WritePin(Relay_Drogue_GPIO_Port, Relay_Drogue_Pin, GPIO_PIN_SET);
-					// TODO: Add other drogue
-
-					osDelay(DROGUE_DELAY);
-
-					HAL_GPIO_WritePin(Relay_Drogue_GPIO_Port, Relay_Drogue_Pin, GPIO_PIN_RESET);
-					// TODO: Add other drogue
-				}
-			}
-
-			// Main Deployment detection
-			if (apogee_reached && alt_filtered < MAIN_DEPLOYMENT && main_deployed == 0){
-				main_deployed = 1;
-				HAL_GPIO_WritePin(Relay_Main_GPIO_Port, Relay_Main_Pin, GPIO_PIN_SET);
-				// TODO: Add other main
-
-				osDelay(MAIN_DELAY);
-
-				HAL_GPIO_WritePin(Relay_Main_GPIO_Port, Relay_Main_Pin, GPIO_PIN_RESET);
-				// TODO: Add other main
-			}
-		 */
-
+#ifdef DEBUG_MODE
+		// ---------- (Print to serial for debugging) ----------
+		char msg[1000];
 		osMessageQueueGet(myQueue01Handle, &real_altitude, NULL, 0);
 		sprintf(msg, "Get altitude =  %hu\n", real_altitude);
-
-
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-
 		osDelay(1000);
+#endif
 	}
+
 	/* USER CODE END 5 */
 }
 
@@ -548,27 +508,43 @@ void startEjection(void *argument)
 void startTelemetry(void *argument)
 {
 	/* USER CODE BEGIN startTelemetry */
-	/* Infinite loop */
-	char msg[1000];
 	uint16_t real_altitude = 0;
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+	/* Infinite loop */
+
 	for (;;) {
 
-		real_altitude = 44330 * (1.0 - pow(pressure / LOCAL_PRESSURE, 0.190295));
-		sprintf(msg, "Send altitude =  %hu\n", real_altitude);
+		osDelay(1000);
 
+		// ---------- Get sensor data ----------
+//		get_acceleration(dev_ctx_lsm, acceleration);
+//		get_angvelocity(dev_ctx_lsm, angular_rate);
+		get_pressure(dev_ctx_lps, &pressure);
+		get_temperature(dev_ctx_lps,  &temperature);
+		real_altitude = 44330 * (1.0 - pow(pressure / LOCAL_PRESSURE, 0.190295)); // TODO: Verify if this is correct
+
+
+		// ---------- Transmit data via radio ----------
+#ifdef TRANSMIT_RADIO
 		// TODO: Replace this with actual variables
 		//	sprintf((char *)tx_buffer,"Temp:%d,Pressure:d,Altitude(BMP,m):%d,Pitch:%d,Roll:%d,Yaw:%d,Latitude:%d,Longitude:%d,Altitude(GPS,m):%d",
 		//					temp, pressure,pitch, roll, yaw, latitude, longitude, gpsAltitude);
-		//	HAL_UART_Transmit(&huart2, tx_buffer, TX_BUF_DIM, TX_BUF_DIM);
 
+		sprintf((char *)tx_buffer, "Temperature:%d\tPressure:%d\n", temperature, pressure);
+		HAL_UART_Transmit(&huart1, tx_buffer, TX_BUF_DIM, TX_BUF_DIM);
+#endif
+
+		// ---------- Put pressure data on message queue ----------
 		osMessageQueuePut(myQueue01Handle, &real_altitude, 0, 100);
 
-		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-
-		osDelay(1000);
+#ifdef DEBUG_MODE
+		// ---------- (Print to serial for debugging) ----------
+		 char msg[1000];
+		 sprintf(msg, "Send altitude =  %hu\n", real_altitude);
+		 HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+#endif
 	}
+
 	/* USER CODE END startTelemetry */
 }
 
