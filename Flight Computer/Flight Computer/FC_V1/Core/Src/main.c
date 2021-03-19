@@ -65,7 +65,7 @@ UART_HandleTypeDef huart2;
 osThreadId_t ejectionTaskHandle;
 const osThreadAttr_t ejectionTask_attributes = {
   .name = "ejectionTask",
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for telemetryTask */
@@ -117,6 +117,13 @@ float acceleration[] = {0, 0, 0};
 float angular_rate[]= {0, 0, 0};
 float pressure = 0;
 float temperature = 0;
+
+// Global altitude variable (protected by mutex)
+float altitude = 0;
+
+// RTC date and time structures
+RTC_DateTypeDef sdatestructureget;
+RTC_TimeTypeDef stimestructureget;
 
 /* USER CODE END PV */
 
@@ -250,17 +257,13 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-  /** Configure LSE Drive Capability
-  */
-  HAL_PWR_EnableBkUpAccess();
-  __HAL_RCC_LSEDRIVE_CONFIG(RCC_LSEDRIVE_LOW);
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSE;
-  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -286,7 +289,7 @@ void SystemClock_Config(void)
                               |RCC_PERIPHCLK_RTC;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
-  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -544,10 +547,10 @@ void startEjection(void *argument)
 	{
 #ifdef DEBUG_MODE
 		// ---------- (Print to serial for debugging) ----------
+		osDelay(1000);
 
 		sprintf(msg, "Get altitude =  %hu\n", real_altitude);
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
-		osDelay(1000);
 #endif
 	}
 
@@ -571,7 +574,7 @@ void startTelemetry(void *argument)
 
 	for (;;) {
 
-		osDelay(50);
+		osDelay(500);
 
 		// ---------- Get sensor data ----------
 //		get_acceleration(dev_ctx_lsm, acceleration);
@@ -580,6 +583,9 @@ void startTelemetry(void *argument)
 		get_temperature(dev_ctx_lps,  &temperature);
 		real_altitude = 44330 * (1.0 - pow(pressure / LOCAL_PRESSURE, 0.190295)); // TODO: Verify if this is correct
 
+		// ---------- Get RTC data ----------
+		HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+		HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 
 		// ---------- Transmit data via radio ----------
 #ifdef TRANSMIT_RADIO
@@ -597,7 +603,8 @@ void startTelemetry(void *argument)
 		// ---------- (Print to serial for debugging) ----------
 #ifdef DEBUG_MODE
 
-		 sprintf(msg, "Send altitude =  %hu\n", real_altitude);
+//		 sprintf(msg, "Send altitude =  %hu\n", real_altitude);
+		 sprintf(msg, "Current Second =  %hu\n", stimestructureget.Seconds);
 		 HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 #endif
 	}
