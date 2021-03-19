@@ -119,7 +119,7 @@ float pressure = 0;
 float temperature = 0;
 
 // Global altitude variable (protected by mutex)
-float altitude = 0;
+uint16_t altitude = 0;
 
 // RTC date and time structures
 RTC_DateTypeDef sdatestructureget;
@@ -549,7 +549,14 @@ void startEjection(void *argument)
 		// ---------- (Print to serial for debugging) ----------
 		osDelay(1000);
 
-		sprintf(msg, "Get altitude =  %hu\n", real_altitude);
+		// Acquire and release mutex
+		while (osMutexAcquire(altitudeMutexHandle, 0) != osOK){
+			osThreadYield();
+		}
+		real_altitude = (uint16_t)altitude;	// Acquire global variable
+		osMutexRelease(altitudeMutexHandle);
+
+		sprintf(msg, "Get:  %hu\n", real_altitude);
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 #endif
 	}
@@ -597,15 +604,20 @@ void startTelemetry(void *argument)
 		HAL_UART_Transmit(&huart1, tx_buffer, TX_BUF_DIM, TX_BUF_DIM);
 #endif
 
+		// ---------- Put pressure data in global variable ----------
 
-
+		// Acquire and release mutex
+		while (osMutexAcquire(altitudeMutexHandle, 0) != osOK)
+			osThreadYield();
+		altitude = real_altitude;	// Set global variable
+		osMutexRelease(altitudeMutexHandle);
 
 		// ---------- (Print to serial for debugging) ----------
 #ifdef DEBUG_MODE
 
-//		 sprintf(msg, "Send altitude =  %hu\n", real_altitude);
-		 sprintf(msg, "Current Second =  %hu\n", stimestructureget.Seconds);
-		 HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+
+		sprintf(msg, "%hu: %hu\n", stimestructureget.Seconds, real_altitude);
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 #endif
 	}
 
