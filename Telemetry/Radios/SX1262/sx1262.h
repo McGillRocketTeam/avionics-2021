@@ -302,7 +302,7 @@ class SX1262 {
 
             @param offset Offset when reading buffer.
         */
-        command_status_t receiveContinuous(uint8_t *received_data, uint16_t length, uint8_t offset);
+        command_status_t receiveContinuous(uint8_t *received_data, uint8_t length, uint8_t offset);
 
         /* 
             ============================= Passing Instructions ================================
@@ -480,7 +480,7 @@ class SX1262 {
 
             @param received_buf Data read from buffer.
         */
-        command_status_t readBuffer(uint8_t offset, uint8_t size, uint8_t *received_buf);
+        command_status_t readBuffer(uint8_t offset, uint8_t size, uint8_t *received_buf, bool checkStatus=true);
 
         /* 
             ====================================== DIO and IRQ Control Functions ==========================================
@@ -646,6 +646,22 @@ class SX1262 {
             @param rssi Address to store RSSI value.
         */
         command_status_t getRssiInst(uint8_t *rssi);
+
+        /*
+            @brief Return statistics on the last few packets.
+
+            @param stats Stats of received packets
+                Bytes 1-2:  Number of received packets
+                Bytes 3-4:  Number of packets with CRC errors
+                Bytes 5-6:  GFSK = Number of packet length errors
+                            LoRa = Number of packet header errors
+        */
+       command_status_t getStats(uint8_t *stats);
+
+       /*
+            @brief Reset values of GetStats
+       */
+        command_status_t resetStats();
         /* 
             ========================================== Miscellaneous ==========================================
         */
