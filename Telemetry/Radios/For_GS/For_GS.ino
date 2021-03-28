@@ -121,10 +121,10 @@ void loop() {
   long gpsAltitude = myGPS.getAltitude();
 
   //======= str =========================================================================
-  String str = String(pitch) + "," + String(roll) + "," + String(yaw) + ",";
-  str += String(accel_x) + "," + String(accel_y) + "," + String(accel_z) + ",";
-  str += String(pressure) +  "," + String(real_altitude) + ",";
-  str += String(latitude) + "," + String(longitude) + ",";
+  String str = String(pitch) + ";" + String(roll) + ";" + String(yaw) + ";";
+  str += String(accel_x) + ";" + String(accel_y) + ";" + String(accel_z) + ";";
+  str += String(pressure) +  ";" + String(real_altitude) + ";";
+  str += String(latitude) + ";" + String(longitude) + ";";
   str += getDateTime();
   //position estimate - kalman filter
 
