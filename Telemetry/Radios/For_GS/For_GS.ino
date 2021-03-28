@@ -20,21 +20,20 @@ void setup() {
 
   Serial.begin(9600);
   Wire.begin();
-  Serial.println(F("All sensor test"));
   
   // RTC INITIALIZATION ==============================================
   while (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
   }
 
-  if (! rtc.initialized()) {
-    Serial.println("RTC is NOT running!");
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  }
+//  if (! rtc.initialized()) {
+//    Serial.println("RTC is NOT running!");
+//    // following line sets the RTC to the date & time this sketch was compiled
+//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//    // This line sets the RTC with an explicit date & time, for example to set
+//    // January 21, 2014 at 3am you would call:
+//    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+//  }
   // RTC END INIT =====================================================
 
   // BNO INITIALIZATION ===============================================
@@ -118,25 +117,16 @@ void loop() {
 
   //======= NEO =========================================================================
   long latitude = myGPS.getLatitude();
-  latitude /= pow(10,7);
-
   long longitude = myGPS.getLongitude();
-  longitude /= pow(10,7);
-
   long gpsAltitude = myGPS.getAltitude();
-  gpsAltitude /= pow(10,3);
 
   //======= str =========================================================================
-  String str = "Temp: " + String(temp) + ",";
-  str += "Pressure:" + String(pressure) +  ",";
-  str += "Altitude(BMP,m):" + String(real_altitude) + ",";
-  str += "Pitch:" + String(pitch) + ",";
-  str += "Roll:" + String(roll) + ",";
-  str += "Yaw:" + String(yaw) + ",";
-  str += "Latitude:" + String(latitude) + ",";
-  str += "Longitude:" + String(longitude) + ",";
-  str += "Altitude(GPS,m):" + String(gpsAltitude) + ",";
-  str += "Time:" + getDateTime() + "\n";
+  String str = String(pitch) + "," + String(roll) + "," + String(yaw) + ",";
+  str += String(accel_x) + "," + String(accel_y) + "," + String(accel_z) + ",";
+  str += String(pressure) +  "," + String(real_altitude) + ",";
+  str += String(latitude) + "," + String(longitude) + ",";
+  str += getDateTime();
+  //position estimate - kalman filter
 
   Serial.println(str);
   
@@ -144,6 +134,5 @@ void loop() {
   myFile.print(str+ "\n");
   myFile.close();
   
-  delay(500);
   delay(500);
 }

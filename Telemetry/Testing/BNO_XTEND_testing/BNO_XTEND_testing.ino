@@ -3,21 +3,16 @@
 #include <Adafruit_BNO055.h>
 
 Adafruit_BNO055 bno;
-File myFile;
+#define xtendSerial Serial2
 
 float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
 int seaLevelhPa = 102540;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   Serial.println(F("All sensor test"));
-
-  pinMode(10, OUTPUT);
-  if(!SD.begin(10)){
-    Serial.println("SD card rip");
-    return;
-  }
+  xtendSerial.begin(9600);
 
   // Check BNO
   if (!bno.begin())
@@ -26,15 +21,6 @@ void setup() {
     digitalWrite(4, HIGH);
     while (1);
   }
-
-  // Remove file if exists
-  if (SD.exists("example.txt")) {
-     SD.remove("example.txt");
-  }
-  myFile =SD.open("example.txt", FILE_WRITE);
-  myFile.print("we are writing");
-  myFile.close();
-
   bno.setExtCrystalUse(true);
 
   digitalWrite(22, HIGH);
@@ -64,9 +50,8 @@ void loop() {
   
   Serial.println(str);
   Serial.println();
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.print(str);
-  myFile.close();
+
+  xtendSerial.println(str);
 
   Serial.println(F("All sensor test"));
   

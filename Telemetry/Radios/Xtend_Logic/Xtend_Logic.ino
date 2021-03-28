@@ -87,10 +87,8 @@ void loop() {
   
     //======= NEO =========================================================================
     long latitude = myGPS.getLatitude();
-    latitude /= pow(10,7);
   
     long longitude = myGPS.getLongitude();
-    longitude /= pow(10,7);
   
     long gpsAltitude = myGPS.getAltitude();
     gpsAltitude /= pow(10,3);
