@@ -10,12 +10,13 @@
  * ----------------------------------------------------------
  * ----------------------------------------------------------
  *       3V3   GND    MISO   MOSI   SCK    SS   
- * Pins: 3V     G      12     11     13    10
+ * Pins: 3V    GND     12     11     13    10
  * 
 */
 
 #include <SPI.h>
 #include <sx1262.h>
+#include <stdio.h>
 
 #define RESET 16      //SX126X Reset line
 #define BUSY 17       //SX126X BUSY line, must be low before transmission  
@@ -25,29 +26,41 @@
 #define NSS 10        //SX126X SPI device select, active low
 
 
-SX1262 device;
+SX1262 device; // Create instance of device class
 
 command_status_t command_status;
 
-
+void sx1262_setup();
 
 uint32_t freqeuncy = 448000000; // 448 MHz
 uint16_t preamble_length = 12; // From 10 to  65535 symbols
 uint8_t tx_address = 0x00;
 uint8_t rx_address = 0x00;
 
-uint8_t received_data[5] = {0};
+uint8_t received_data[150] = {0};
+uint8_t last_packet[150] = {0};
 
+uint8_t rssi = 0; // set initial value of non possible rssi value
+float converted_rssi;
+uint8_t device_status;
+uint8_t rx_status[2] = {0};
+uint8_t rx_stats[6] = {0};
+uint16_t number_of_packets = 0;
+uint16_t number_of_crc_errors = 0;
+uint16_t number_of_header_errors = 0;
+uint16_t irq_status;
+uint8_t loop_counter = 0;
+int i = 0;
+unsigned long break_time;
 #define irq_set_mask                                0b1000000011 // Set Mask for TXDone, RXDone and Rx/Tx Timeout
 
 void setup() {
-  // Initialize BUSY line and SS line
 
   device.begin(NSS,BUSY,RESET,DIO1,ANT_SW); // Store pin ports for SX1262 class
   SPI.begin();
   Serial.begin(9600);
   
-  delay(100);
+  delay(10);
 
   // Begin RX setup
 /*
@@ -126,12 +139,12 @@ void setup() {
     Serial.println("setBufferBaseAddress Failed");
   }
   
-  command_status = device.setLoRaModulationParams(LORA_SF7, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
+  command_status = device.setLoRaModulationParams(LORA_SF9, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setLoRaModulationParams Failed");
   }
   
-  command_status = device.setLoRaPacketParams(preamble_length, 0, 0xFF, 0, 0); // Set variable length, payload size of 5 bytes,  CRC on, and invert_iq is standard
+  command_status = device.setLoRaPacketParams(preamble_length, 0, 0xFF, 1, 0); // Set variable length, payload size of 5 bytes,  CRC on, and invert_iq is standard
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setLoRaPacketParams Failed");
   }
@@ -150,35 +163,135 @@ void setup() {
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setLoRaSymbNumTimeout Failed");
   }
-  
-  command_status = device.setRx(0xFFFFFF);
-  if (command_status != COMMAND_SUCCESS) {
-    Serial.println("setRx Failed");
-  }
 
   Serial.println("Setup Complete");
+}
+
+
+void sx1262_setup() {
+  command_status = device.setStandBy(0); // Set device in standby mode, STDBY_RC
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setStandBy Failed");
+  }
+  
+  command_status = device.setPacketType(0x01); // Set packet type to LoRa
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setPacketType Failed");
+  }
+  
+  command_status = device.setRfFrequency(freqeuncy); // Set RF frequency
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setRfFrequency Failed");
+  }
+  
+  command_status = device.setBufferBaseAddress(tx_address, rx_address);
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setBufferBaseAddress Failed");
+  }
+  
+  command_status = device.setLoRaModulationParams(LORA_SF9, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setLoRaModulationParams Failed");
+  }
+  
+  command_status = device.setLoRaPacketParams(preamble_length, 0, 0xFF, 1, 0); // Set variable length, payload size of 5 bytes,  CRC on, and invert_iq is standard
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setLoRaPacketParams Failed");
+  }
+
+  command_status = device.setDioIrqParams(SX1262_IRQ_ALL,irq_set_mask,SX1262_IRQ_NONE,SX1262_IRQ_NONE);
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setDioIrqParams Failed");
+  }
 }
 
 void loop() {
 
 // ---------- SIMPLE RECEIVE --------------
-  command_status = device.receiveContinuous(received_data, 5, 0);
+
+  device.clearIrqStatus(SX1262_IRQ_RX_DONE);
+  command_status = device.setRx(0x061A80); // 400,000 * 15.625 us = 6.25s timeout
   if (command_status != COMMAND_SUCCESS) {
-    Serial.print("receiveContinuous Failed, Command Status:");
-    Serial.println(command_status);
-    uint16_t irq__status;
-    device.getIrqStatus(&irq__status);
-    Serial.print("IRQ Status:");
-    Serial.println(irq__status, BIN);
-  } else {
-    Serial.println("\n");
-    Serial.println("-----  Read Data ------");
-    for(int i = 0; i< 5; i++) {
-      Serial.print(received_data[i]);
+    Serial.println("setRx Failed");
+  }
+
+  device.getIrqStatus(&irq_status);
+  break_time = millis();
+  while( (!(irq_status & SX1262_IRQ_TIMEOUT)) && (!(irq_status & SX1262_IRQ_RX_DONE)) ){
+    device.getIrqStatus(&irq_status);
+    if ((millis() - break_time) > 20000) {
+      Serial.println("Timeout ERROR!!!");
+      break;
     }
-    Serial.println("\n");
+  }
+
+  if( irq_status & SX1262_IRQ_TIMEOUT ) {
+      Serial.println("RX TIMEOUT!");
+      device.clearIrqStatus(SX1262_IRQ_TIMEOUT);
+  } else {
+    if ((irq_status & SX1262_IRQ_HEADER_ERR) || (irq_status & SX1262_IRQ_CRC_ERR)) {
+      device.clearIrqStatus(SX1262_IRQ_HEADER_ERR | SX1262_IRQ_CRC_ERR);
+      Serial.println("CRC Error");
+    } else if (irq_status & SX1262_IRQ_RX_DONE) {
+      
+        command_status = device.readBuffer(0, 150, received_data, true);
+        
+        if (command_status != COMMAND_SUCCESS) {
+          Serial.print("receiveContinuous Failed, Command Status: ");
+          Serial.println(command_status);
+          
+          device.getIrqStatus(&irq_status);
+          Serial.print("IRQ Status: ");
+          Serial.println(irq_status, BIN);
+      
+          command_status = device.getStatus(&device_status);
+          Serial.print("Device Status: ");
+          Serial.println(device_status, BIN);
+          
+        } else {
+          device.getIrqStatus(&irq_status);
+          Serial.print("IRQ Status: ");
+          Serial.println(irq_status, BIN);
+          Serial.println("\n");
+          device.getRXBufferStatus(rx_status); // Update size (rx_status[0]) and offset (rx_status[1]) for new packet
+          Serial.println("-----  Read Data ------");
+          Serial.println("Size of packet");
+          Serial.println(rx_status[0]);
+      
+          memcpy(last_packet, received_data, rx_status[0]);
+          
+          Serial.print((char*)received_data);  
+      
+          Serial.println("\n");
+          Serial.print("RSSI: ");
+          device.getRssiInst(&rssi);
+          converted_rssi = -rssi/2; // Signal Power in dBm
+          Serial.println(converted_rssi);
+          Serial.println("\n");
+        }
+     }
   }
   
-  delay(1000);
+  if (loop_counter > 10) {
+      device.getStats(rx_stats);
+      number_of_packets = (rx_stats[0] << 8) + rx_stats[1];
+      Serial.print("Number of Packets: ");
+      Serial.println(number_of_packets);
+      number_of_crc_errors = (rx_stats[2] << 8) + rx_stats[3];
+      Serial.print("Number of CRC Errors: ");
+      Serial.println(number_of_crc_errors);
+      number_of_header_errors = (rx_stats[4] << 8) + rx_stats[5];
+      Serial.print("Number of Header Errors: ");
+      Serial.println(number_of_header_errors);
+      loop_counter = 0;
+    }
+  Serial.println();
+  Serial.println("Last Packet Received");
+  Serial.print((char*)last_packet);
+  Serial.println(); 
   
+  loop_counter++;
+
+//  sx1262_setup(); 
+//  delay(200);
 }
