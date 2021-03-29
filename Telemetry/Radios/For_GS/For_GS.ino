@@ -1,4 +1,4 @@
-#include <Wire.h>
+                                                                                                        #include <Wire.h>
 #include <SD.h>
 #include "RTClib.h"
 #include <Adafruit_BNO055.h>
@@ -79,7 +79,6 @@ void setup() {
      SD.remove("example.txt");
   }
   myFile =SD.open("example.txt", FILE_WRITE);
-  myFile.print("we are writing");
   myFile.close();
   // SD END INIT ======================================================
 
