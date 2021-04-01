@@ -588,7 +588,7 @@ void startTelemetry(void *argument)
 //		get_angvelocity(dev_ctx_lsm, angular_rate);
 		get_pressure(dev_ctx_lps, &pressure);
 		get_temperature(dev_ctx_lps,  &temperature);
-		real_altitude = 44330 * (1.0 - pow(pressure / LOCAL_PRESSURE, 0.190295)); // TODO: Verify if this is correct
+		real_altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 
 		// ---------- Get RTC data ----------
 		HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);

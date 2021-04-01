@@ -85,7 +85,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN Private defines */
 
 #define		TX_BUF_DIM				1000
-#define		LOCAL_PRESSURE			101200		// hPa (Sea level)
+#define		LOCAL_PRESSURE			1013.25		// hPa (Sea level)
 #define		MAIN_DEPLOYMENT			1500		// ft
 #define		THRESHOLD_ALTITUDE		10000		// ft
 #define		DROGUE_DELAY			500			// ms (Time that drogue is HIGH)
