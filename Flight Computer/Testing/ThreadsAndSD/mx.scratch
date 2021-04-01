@@ -14,7 +14,11 @@
       <ProjectName>ThreadsAndSD</ProjectName>
       <ProjectNature>C</ProjectNature>
       <Secure />
-      <filestoremove />
+      <filestoremove>
+        <file>
+          <name>Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS\cmsis_os.c</name>
+        </file>
+      </filestoremove>
       <sourceEntriesToRemove>
         <sourceEntry />
       </sourceEntriesToRemove>

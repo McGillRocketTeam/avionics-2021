@@ -736,8 +736,8 @@ void StartDefaultTask(void *argument)
  80005ec:	4871      	ldr	r0, [pc, #452]	; (80007b4 <StartDefaultTask+0x1d4>)
  80005ee:	f7ff fe4f 	bl	8000290 <myprintf>
 
-	osDelay(1000); //a short delay is important to let the SD card settle
- 80005f2:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
+	osDelay(2000); //a short delay is important to let the SD card settle
+ 80005f2:	f44f 60fa 	mov.w	r0, #2000	; 0x7d0
  80005f6:	f007 fa25 	bl	8007a44 <osDelay>
 	FATFS FatFs; 	//Fatfs handle
 	FIL fil; 		//File handle
@@ -18341,7 +18341,7 @@ int ff_req_grant (	/* TRUE:Got a grant to access the volume, FALSE:Could not get
  80077ea:	60fb      	str	r3, [r7, #12]
   
   if(osSemaphoreAcquire(sobj, _FS_TIMEOUT) == osOK)
- 80077ec:	f44f 717a 	mov.w	r1, #1000	; 0x3e8
+ 80077ec:	f241 3188 	movw	r1, #5000	; 0x1388
  80077f0:	6878      	ldr	r0, [r7, #4]
  80077f2:	f000 fa8d 	bl	8007d10 <osSemaphoreAcquire>
  80077f6:	4603      	mov	r3, r0

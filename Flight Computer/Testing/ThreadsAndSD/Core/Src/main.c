@@ -379,7 +379,7 @@ void StartDefaultTask(void *argument)
 
 	myprintf("\r\n~ SD card demo by kiwih ~\r\n\r\n");
 
-	osDelay(1000); //a short delay is important to let the SD card settle
+	osDelay(2000); //a short delay is important to let the SD card settle
 
 	//some variables for FatFs
 	FATFS FatFs; 	//Fatfs handle
