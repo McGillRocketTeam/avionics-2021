@@ -33,7 +33,7 @@
           </memories>
           <startup>C:\Users\SlinderKid\STM32Cube\Repository\STM32Cube_FW_F3_V1.11.2\Drivers\CMSIS\Device\ST\STM32F3xx\Source\Templates\gcc\startup_stm32f303xe.s</startup>
           <LinkSettings>
-            <icfloc>0</icfloc>
+            <icfloc />
             <LinkAdditionalLibs />
           </LinkSettings>
           <heapSize>0x200</heapSize>
