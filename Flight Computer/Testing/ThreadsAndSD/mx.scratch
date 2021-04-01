@@ -33,7 +33,7 @@
           </memories>
           <startup>C:\Users\SlinderKid\STM32Cube\Repository\STM32Cube_FW_F3_V1.11.2\Drivers\CMSIS\Device\ST\STM32F3xx\Source\Templates\gcc\startup_stm32f303xe.s</startup>
           <LinkSettings>
-            <icfloc>1</icfloc>
+            <icfloc>0</icfloc>
             <LinkAdditionalLibs />
           </LinkSettings>
           <heapSize>0x200</heapSize>
@@ -51,11 +51,14 @@
           </Cdefines>
           <Ldefines />
           <Cincludes>
+            <include>Core\Inc</include>
             <include>FATFS\Target</include>
             <include>FATFS\App</include>
-            <include>Core\Inc</include>
             <include>Drivers\STM32F3xx_HAL_Driver\Inc\Legacy</include>
             <include>Drivers\STM32F3xx_HAL_Driver\Inc</include>
+            <include>Middlewares\Third_Party\FreeRTOS\Source\include</include>
+            <include>Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS_V2</include>
+            <include>Middlewares\Third_Party\FreeRTOS\Source\portable\GCC\ARM_CM4F</include>
             <include>Middlewares\Third_Party\FatFs\src</include>
             <include>Drivers\CMSIS\Device\ST\STM32F3xx\Include</include>
             <include>Drivers\CMSIS\Include</include>
