@@ -119,7 +119,7 @@ void readReceived() {
   //Reading received byte
   if (xtendSerial.available()) {
     incomingByte = xtendSerial.read();      // will not be -1
-    Serial.println("We received data!\n");
+    Serial.println("We received data! - \n" + incomingByte);
   }
 }
 
