@@ -183,8 +183,14 @@ int main(void)
 
   // Initialize sensors
   // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer and light LED. Else, do smth)
-//  dev_ctx_lsm = lsm6dsr_init();
+  dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
+
+#ifdef DEBUG_MODE
+      sprintf(msg, "---------- INITIALIZED ALL SENSORS ----------\n");
+      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+      HAL_Delay(1000);
+#endif
 
   // Start timer
   HAL_TIM_Base_Start_IT(&htim2);
@@ -204,13 +210,23 @@ int main(void)
   }
   alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- AVERAGE OF ALT READINGS: %hu ----------\n", (uint16_t)alt_ground);
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   // ---------- Waiting for launch ----------
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- WAITING FOR LAUNCH ----------\n");
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   // TODO: Replace 150 by the actual value
   while(alt_filtered < 150){							// Waiting to launch
 	  altitude = getAltitude(dev_ctx_lps, &pressure);
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
-      sprintf(msg, "Filtered Alt =  %hu\n", alt_filtered);
+      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
       HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #else
@@ -220,15 +236,30 @@ int main(void)
   }
 
   // ---------- Launched -> Wait for apogee ----------
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- LAUNCHED ----------\n");
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE) // while moving up and hasn't reached threshold altitude yet
   {
 	  altitude = getAltitude(dev_ctx_lps, &pressure);
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+#ifdef DEBUG_MODE
+      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
+      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+      HAL_Delay(1000);
+#else
       HAL_Delay(5);
+#endif
   }
 
   // ---------- At apogee -> Deploy drogue ----------
-  // TODO: Modify code to actually deploy both relays
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- AT APOGEE - DEPLOYING DROGUE ----------\n");
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_SET);
   HAL_Delay(DROGUE_DELAY);
@@ -239,11 +270,21 @@ int main(void)
   while (alt_filtered > MAIN_DEPLOYMENT){
 	  altitude = getAltitude(dev_ctx_lps, &pressure);
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+#ifdef DEBUG_MODE
+      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
+      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+      HAL_Delay(1000);
+#else
       HAL_Delay(5);
+#endif
   }
 
   // ---------- At main deployment altitude -> Deploy main ----------
-  // TODO: Modify code to actually deploy both relays
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- DEPLOYING MAIN ----------\n");
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_SET);
   HAL_Delay(MAIN_DELAY);
@@ -251,6 +292,11 @@ int main(void)
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
 
   // ---------- END OF EJECTION CODE ----------
+#ifdef DEBUG_MODE
+  sprintf(msg, "---------- EXITING EJECTION ----------\n");
+  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+#endif
+
   // Stop the timer from interrupting and enter while loop
   HAL_TIM_Base_Stop_IT(&htim2);
 
@@ -264,10 +310,10 @@ int main(void)
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 	get_pressure(dev_ctx_lps, &pressure);
 	get_temperature(dev_ctx_lps,  &temperature);
-//	get_acceleration(dev_ctx_lsm, acceleration);
-//	get_angvelocity(dev_ctx_lsm, angular_rate);
+	get_acceleration(dev_ctx_lsm, acceleration);
+	get_angvelocity(dev_ctx_lsm, angular_rate);
 //	get_gps();
-	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure);
+	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
 #ifndef DEBUG_MODE
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #else
@@ -635,8 +681,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 2:
 				// Acceleration/Ang Velocity
-//				get_acceleration(dev_ctx_lsm, acceleration);
-//				get_angvelocity(dev_ctx_lsm, angular_rate);
+				get_acceleration(dev_ctx_lsm, acceleration);
+				get_angvelocity(dev_ctx_lsm, angular_rate);
 				currTask++;
 				break;
 			case 3:
@@ -646,7 +692,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			default:
 				// Transmit to radio
-				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure);
+				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
 #ifndef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer ), 1000);
 #else
