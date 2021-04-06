@@ -8,6 +8,10 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include USB_DEVICE/Target/subdir.mk
+-include USB_DEVICE/App/subdir.mk
+-include Middlewares/ST/STM32_USB_Device_Library/Core/Src/subdir.mk
+-include Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/subdir.mk
 -include Drivers/STM32F3xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
@@ -46,8 +50,8 @@ f303_lps22hh.bin \
 all: f303_lps22hh.elf secondary-outputs
 
 # Tool invocations
-f303_lps22hh.elf: $(OBJS) $(USER_OBJS) C:\Users\holyc\dev\avionics-2021\Flight\ Computer\ R&D\Learning\f303_lps22hh\STM32F303RETX_FLASH.ld
-	arm-none-eabi-gcc -o "f303_lps22hh.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\holyc\dev\avionics-2021\Flight Computer R&D\Learning\f303_lps22hh\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_lps22hh.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+f303_lps22hh.elf: $(OBJS) $(USER_OBJS) C:\Users\holyc\dev\avionics-2021\Flight\ Computer\Learning\f303_lps22hh\STM32F303RETX_FLASH.ld
+	arm-none-eabi-gcc -o "f303_lps22hh.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\holyc\dev\avionics-2021\Flight Computer\Learning\f303_lps22hh\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_lps22hh.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

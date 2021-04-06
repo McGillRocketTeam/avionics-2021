@@ -4,3 +4,5 @@
 /objects.list
 /objects.mk
 /sources.mk
+/Middlewares/
+/USB_DEVICE/

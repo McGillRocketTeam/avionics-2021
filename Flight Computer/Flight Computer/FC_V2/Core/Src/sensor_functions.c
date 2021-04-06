@@ -71,8 +71,11 @@ stmdev_ctx_t lsm6dsr_init(void){
 	/* Check device ID */
 	lsm6dsr_device_id_get(&dev_ctx_lsm6dsr, &whoamI_lsm6dsr);
 
-	if (whoamI_lsm6dsr != LSM6DSR_ID)
-	while (1);
+	if (whoamI_lsm6dsr != LSM6DSR_ID){
+		HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+		__BKPT();
+		while (1);
+	}
 
 	/* Restore default configuration */
 	lsm6dsr_reset_set(&dev_ctx_lsm6dsr, PROPERTY_ENABLE);
@@ -161,8 +164,12 @@ stmdev_ctx_t lps22hh_init(void){
 	whoamI_lps22hh = 0;
 	lps22hh_device_id_get(&dev_ctx_lps22hh, &whoamI_lps22hh);
 
-	if ( whoamI_lps22hh != LPS22HH_ID )
-	while (1); /*manage here device not found */
+	if ( whoamI_lps22hh != LPS22HH_ID ){
+		HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+		__BKPT();
+		while (1); /*manage here device not found */
+	}
+
 
 	/* Restore default configuration */
 	lps22hh_reset_set(&dev_ctx_lps22hh, PROPERTY_ENABLE);

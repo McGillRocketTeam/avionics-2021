@@ -54,7 +54,7 @@ I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
-TIM_HandleTypeDef htim16;
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
@@ -63,6 +63,9 @@ UART_HandleTypeDef huart2;
 
 // Transmission buffer
 static uint8_t tx_buffer[TX_BUF_DIM];
+#ifdef DEBUG_MODE
+char msg[1000];
+#endif
 
 // Ejection Variables
 float alt_meas;
@@ -103,6 +106,7 @@ RTC_TimeTypeDef stimestructureget;
 // Timer variable
 volatile uint8_t currTask = 0;
 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,8 +115,8 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
-static void MX_TIM16_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 // LSM6DSR functions
@@ -166,8 +170,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_RTC_Init();
-  MX_TIM16_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   // Reset GPIOs
@@ -183,7 +187,7 @@ int main(void)
   dev_ctx_lps = lps22hh_init();
 
   // Start timer
-  HAL_TIM_Base_Start_IT(&htim16);
+  HAL_TIM_Base_Start_IT(&htim2);
 
   // Buzzer
   // TODO: Add buzzer here to signal start of ejection
@@ -192,10 +196,6 @@ int main(void)
   uint32_t altitude = 0;
   uint32_t alt_filtered = 0;
 //  uint32_t currTick;
-
-#ifdef DEBUG_MODE
-  char msg[1000];
-#endif
 
   // ---------- Get ground-level pressure and set as bias ----------
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -211,7 +211,7 @@ int main(void)
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
       sprintf(msg, "Filtered Alt =  %hu\n", alt_filtered);
-      HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #else
       HAL_Delay(50);
@@ -252,7 +252,7 @@ int main(void)
 
   // ---------- END OF EJECTION CODE ----------
   // Stop the timer from interrupting and enter while loop
-  HAL_TIM_Base_Stop_IT(&htim16);
+  HAL_TIM_Base_Stop_IT(&htim2);
 
   /* USER CODE END 2 */
 
@@ -260,6 +260,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 	get_pressure(dev_ctx_lps, &pressure);
 	get_temperature(dev_ctx_lps,  &temperature);
@@ -294,14 +295,16 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
+                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV1;
+  RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -321,12 +324,12 @@ void SystemClock_Config(void)
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2
                               |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_RTC
-                              |RCC_PERIPHCLK_TIM16;
+                              |RCC_PERIPHCLK_TIM2;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
-  PeriphClkInit.Tim16ClockSelection = RCC_TIM16CLK_HCLK;
+  PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -409,70 +412,83 @@ static void MX_RTC_Init(void)
   }
   /* USER CODE BEGIN RTC_Init 2 */
 
-  RTC_DateTypeDef sdatestructure;
-  RTC_TimeTypeDef stimestructure;
-
-  /*##-1- Configure the Date #################################################*/
-  /* Set Date: Tuesday April 1st 2021 */
-  sdatestructure.Year = 0x21;
-  sdatestructure.Month = RTC_MONTH_APRIL;
-  sdatestructure.Date = 0x01;
-  sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
-
-  if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
-  {
-	  /* Initialization Error */
-	  Error_Handler();
-  }
-
-  /*##-2- Configure the Time #################################################*/
-  /* Set Time: 01:45:00 */
-  stimestructure.Hours = 0x01;
-  stimestructure.Minutes = 0x45;
-  stimestructure.Seconds = 0x00;
-  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
-  stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
-  stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
-
-  if (HAL_RTC_SetTime(&hrtc, &stimestructure, RTC_FORMAT_BCD) != HAL_OK)
-  {
-	  /* Initialization Error */
-	  Error_Handler();
-  }
+//  RTC_DateTypeDef sdatestructure;
+//  RTC_TimeTypeDef stimestructure;
+//
+//  /*##-1- Configure the Date #################################################*/
+//  /* Set Date: Tuesday April 1st 2021 */
+//  sdatestructure.Year = 0x21;
+//  sdatestructure.Month = RTC_MONTH_APRIL;
+//  sdatestructure.Date = 0x01;
+//  sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
+//
+//  if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
+//  {
+//	  /* Initialization Error */
+//	  Error_Handler();
+//  }
+//
+//  /*##-2- Configure the Time #################################################*/
+//  /* Set Time: 01:45:00 */
+//  stimestructure.Hours = 0x01;
+//  stimestructure.Minutes = 0x45;
+//  stimestructure.Seconds = 0x00;
+//  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
+//  stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
+//  stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
+//
+//  if (HAL_RTC_SetTime(&hrtc, &stimestructure, RTC_FORMAT_BCD) != HAL_OK)
+//  {
+//	  /* Initialization Error */
+//	  Error_Handler();
+//  }
 
   /* USER CODE END RTC_Init 2 */
 
 }
 
 /**
-  * @brief TIM16 Initialization Function
+  * @brief TIM2 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM16_Init(void)
+static void MX_TIM2_Init(void)
 {
 
-  /* USER CODE BEGIN TIM16_Init 0 */
+  /* USER CODE BEGIN TIM2_Init 0 */
 
-  /* USER CODE END TIM16_Init 0 */
+  /* USER CODE END TIM2_Init 0 */
 
-  /* USER CODE BEGIN TIM16_Init 1 */
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE END TIM16_Init 1 */
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 7199;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 999;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 7199;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 999;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM16_Init 2 */
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
 
-  /* USER CODE END TIM16_Init 2 */
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -603,49 +619,38 @@ uint32_t getAltitude(stmdev_ctx_t dev_ctx){
 
 // Callbacks
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if (htim == &htim16){
+	if (htim == &htim2){
 		switch (currTask){
 			case 0:
-				// Time
+				// Date/Time
 				HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+				HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 				currTask++;
 				break;
 			case 1:
-				// Pressure
+				// Pressure/Temp
 				get_pressure(dev_ctx_lps, &pressure);
-				currTask++;
-				break;
-			case 2:
-				// Temperature
 				get_temperature(dev_ctx_lps,  &temperature);
 				currTask++;
 				break;
-			case 3:
-				// Acceleration
+			case 2:
+				// Acceleration/Ang Velocity
 //				get_acceleration(dev_ctx_lsm, acceleration);
-				currTask++;
-				break;
-			case 4:
-				// Angular Velocity
 //				get_angvelocity(dev_ctx_lsm, angular_rate);
 				currTask++;
 				break;
-			case 5:
+			case 3:
 				// GPS
 //				get_gps();
 				currTask++;
 				break;
-			case 6:
-				// Format string
-				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure);
-				currTask++;
-				break;
 			default:
 				// Transmit to radio
+				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure);
 #ifndef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer ), 1000);
 #else
-				HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer ), 1000);
+				HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 				currTask = 0;
 				break;
