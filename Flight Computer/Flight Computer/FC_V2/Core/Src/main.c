@@ -77,6 +77,8 @@ uint8_t apogee_reached = 0;
 uint8_t launched = 0;
 uint8_t main_deployed = 0;
 
+uint8_t readingLps = 0;
+
 long time11;
 long time12;
 long time21;
@@ -186,6 +188,12 @@ int main(void)
   dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
 
+  // Get initial sensor values
+  get_pressure(dev_ctx_lps, &pressure);
+  get_temperature(dev_ctx_lps,  &temperature);
+  get_acceleration(dev_ctx_lsm, acceleration);
+  get_angvelocity(dev_ctx_lsm, angular_rate);
+
 #ifdef DEBUG_MODE
       sprintf(msg, "---------- INITIALIZED ALL SENSORS ----------\n");
       HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
@@ -211,19 +219,14 @@ int main(void)
   alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- AVERAGE OF ALT READINGS: %hu ----------\n", (uint16_t)alt_ground);
+  sprintf(msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
   // ---------- Waiting for launch ----------
-#ifdef DEBUG_MODE
-  sprintf(msg, "---------- WAITING FOR LAUNCH ----------\n");
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
-#endif
-
   // TODO: Replace 150 by the actual value
   while(alt_filtered < 150){							// Waiting to launch
-	  altitude = getAltitude(dev_ctx_lps, &pressure);
+	  altitude = getAltitude();
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
       sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
@@ -243,20 +246,14 @@ int main(void)
 
   while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE) // while moving up and hasn't reached threshold altitude yet
   {
-	  altitude = getAltitude(dev_ctx_lps, &pressure);
+	  altitude = getAltitude();
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-#ifdef DEBUG_MODE
-      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
-      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
-      HAL_Delay(1000);
-#else
       HAL_Delay(5);
-#endif
   }
 
   // ---------- At apogee -> Deploy drogue ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- AT APOGEE - DEPLOYING DROGUE ----------\n");
+  sprintf(msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -268,20 +265,14 @@ int main(void)
 
   // ---------- Wait for main deployment altitude ----------
   while (alt_filtered > MAIN_DEPLOYMENT){
-	  altitude = getAltitude(dev_ctx_lps, &pressure);
+	  altitude = getAltitude();
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-#ifdef DEBUG_MODE
-      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
-      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
-      HAL_Delay(1000);
-#else
       HAL_Delay(5);
-#endif
   }
 
   // ---------- At main deployment altitude -> Deploy main ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- DEPLOYING MAIN ----------\n");
+  sprintf(msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -313,8 +304,10 @@ int main(void)
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
 //	get_gps();
-	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
+	sprintf((char *)tx_buffer, "L: TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
 #ifndef DEBUG_MODE
+	// Transmit via radio
+	// TODO: Replace with RnD radio
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #else
 	HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer), 1000);
@@ -465,8 +458,8 @@ static void MX_RTC_Init(void)
 //  /* Set Date: Tuesday April 1st 2021 */
 //  sdatestructure.Year = 0x21;
 //  sdatestructure.Month = RTC_MONTH_APRIL;
-//  sdatestructure.Date = 0x01;
-//  sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
+//  sdatestructure.Date = 0x07;
+//  sdatestructure.WeekDay = RTC_WEEKDAY_WEDNESDAY;
 //
 //  if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
 //  {
@@ -657,10 +650,13 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 // Function Definitions
-uint32_t getAltitude(stmdev_ctx_t dev_ctx){
+// TODO: Move this to sensor_functions.c
+uint32_t getAltitude(){
+	readingLps = 1;
 	get_pressure(dev_ctx_lps, &pressure);
-	uint32_t altitude = pressure;
-	return altitude;						// TODO: Add conversion from pressure to altitude here
+	readingLps = 0;
+	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
+	return altitude;
 }
 
 // Callbacks
@@ -675,6 +671,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 1:
 				// Pressure/Temp
+				if (readingLps != 0){		// Yield to ejection if it has control of the LPS sensor
+					break;
+				}
 				get_pressure(dev_ctx_lps, &pressure);
 				get_temperature(dev_ctx_lps,  &temperature);
 				currTask++;
