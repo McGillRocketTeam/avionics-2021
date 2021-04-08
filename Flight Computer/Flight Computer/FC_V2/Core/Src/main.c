@@ -27,6 +27,7 @@
 #include "lsm6dsr_reg.h"
 #include "lps22hh_reg.h"
 #include "ejection.h"
+#include "gps.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,6 +40,7 @@
 
 // ---------- COMMENT THESE OUT AS NEEDED ---------- //
 #define		DEBUG_MODE
+//#define		CONFIG_TIME
 //#define		TRANSMIT_RADIO
 // ------------------------------------------------- //
 
@@ -59,6 +61,7 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -101,6 +104,9 @@ float acceleration[] = {0, 0, 0};
 float angular_rate[]= {0, 0, 0};
 float pressure = 0;
 float temperature = 0;
+float latitude;
+float longitude;
+float time;
 
 // RTC date and time structures
 RTC_DateTypeDef sdatestructureget;
@@ -121,6 +127,7 @@ static void MX_RTC_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 // LSM6DSR functions
@@ -132,6 +139,9 @@ extern void get_angvelocity(stmdev_ctx_t dev_ctx, float *angular_rate_mdps);
 extern stmdev_ctx_t lps22hh_init(void);
 extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
 extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
+
+// GPS functions
+void GPS_Poll(float*, float*, float*);
 
 // Convert pressure to altitude function
 uint32_t getAltitude();
@@ -177,6 +187,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
   // Reset GPIOs
@@ -196,10 +207,11 @@ int main(void)
   get_temperature(dev_ctx_lps,  &temperature);
   get_acceleration(dev_ctx_lsm, acceleration);
   get_angvelocity(dev_ctx_lsm, angular_rate);
+  GPS_Poll(&latitude, &longitude, &time);
 
 #ifdef DEBUG_MODE
       sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS ----------\n");
-      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+      HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #endif
 
@@ -228,7 +240,7 @@ int main(void)
 
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   // ---------- Waiting for launch ----------
@@ -237,8 +249,8 @@ int main(void)
 	  altitude = getAltitude();
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
-      sprintf((char *)msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
-      HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+      sprintf((char *)msg, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
+      HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #else
       HAL_Delay(50);
@@ -249,7 +261,7 @@ int main(void)
   // ---------- Launched -> Wait for apogee ----------
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- LAUNCHED ----------\n");
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE) // while moving up and hasn't reached threshold altitude yet
@@ -262,7 +274,7 @@ int main(void)
   // ---------- At apogee -> Deploy drogue ----------
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
@@ -281,7 +293,7 @@ int main(void)
   // ---------- At main deployment altitude -> Deploy main ----------
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
@@ -293,7 +305,7 @@ int main(void)
   // ---------- END OF EJECTION CODE ----------
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- EXITING EJECTION ----------\n");
-  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   // Stop the timer from interrupting and enter while loop
@@ -311,14 +323,14 @@ int main(void)
 	get_temperature(dev_ctx_lps,  &temperature);
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
-//	get_gps();
-	sprintf((char *)tx_buffer, "L: TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
+	GPS_Poll(&latitude, &longitude, &time);
+	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
 #ifndef DEBUG_MODE
 	// Transmit via radio
 	// TODO: Replace with RnD radio
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #else
-	HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer), 1000);
+	HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 
 	HAL_Delay(transmit_delay_time);
@@ -370,10 +382,12 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2
-                              |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_RTC
-                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
+                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_I2C1
+                              |RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_TIM2
+                              |RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+  PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
@@ -460,36 +474,38 @@ static void MX_RTC_Init(void)
   }
   /* USER CODE BEGIN RTC_Init 2 */
 
-//  RTC_DateTypeDef sdatestructure;
-//  RTC_TimeTypeDef stimestructure;
-//
-//  /*##-1- Configure the Date #################################################*/
-//  /* Set Date: Tuesday April 1st 2021 */
-//  sdatestructure.Year = 0x21;
-//  sdatestructure.Month = RTC_MONTH_APRIL;
-//  sdatestructure.Date = 0x07;
-//  sdatestructure.WeekDay = RTC_WEEKDAY_WEDNESDAY;
-//
-//  if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
-//  {
-//	  /* Initialization Error */
-//	  Error_Handler();
-//  }
-//
-//  /*##-2- Configure the Time #################################################*/
-//  /* Set Time: 01:45:00 */
-//  stimestructure.Hours = 0x01;
-//  stimestructure.Minutes = 0x45;
-//  stimestructure.Seconds = 0x00;
-//  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
-//  stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
-//  stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
-//
-//  if (HAL_RTC_SetTime(&hrtc, &stimestructure, RTC_FORMAT_BCD) != HAL_OK)
-//  {
-//	  /* Initialization Error */
-//	  Error_Handler();
-//  }
+#ifdef CONFIG_TIME
+  RTC_DateTypeDef sdatestructure;
+  RTC_TimeTypeDef stimestructure;
+
+  /*##-1- Configure the Date #################################################*/
+  /* Set Date: Tuesday April 8th 2021 */
+  sdatestructure.Year = 0x21;
+  sdatestructure.Month = RTC_MONTH_APRIL;
+  sdatestructure.Date = 0x08;
+  sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
+
+  if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
+  {
+	  /* Initialization Error */
+	  Error_Handler();
+  }
+
+  /*##-2- Configure the Time #################################################*/
+  /* Set Time: 01:45:00 */
+  stimestructure.Hours = 0x02;
+  stimestructure.Minutes = 0x47;
+  stimestructure.Seconds = 0x00;
+  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
+  stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
+  stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
+
+  if (HAL_RTC_SetTime(&hrtc, &stimestructure, RTC_FORMAT_BCD) != HAL_OK)
+  {
+	  /* Initialization Error */
+	  Error_Handler();
+  }
+#endif
 
   /* USER CODE END RTC_Init 2 */
 
@@ -650,7 +666,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = 9600;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -666,6 +682,41 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 38400;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -754,16 +805,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 3:
 				// GPS
-//				get_gps();
+				GPS_Poll(&latitude, &longitude, &time);
 				currTask++;
 				break;
 			default:
 				// Transmit to radio
-				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0]);
+				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
 #ifndef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer ), 1000);
 #else
-				HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *)tx_buffer), 1000);
+				HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 				currTask = 0;
 				break;
