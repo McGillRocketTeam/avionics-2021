@@ -64,7 +64,7 @@ UART_HandleTypeDef huart2;
 // Transmission buffer
 static uint8_t tx_buffer[TX_BUF_DIM];
 #ifdef DEBUG_MODE
-char msg[1000];
+static uint8_t msg[1000];
 #endif
 
 // Ejection Variables
@@ -195,7 +195,7 @@ int main(void)
   get_angvelocity(dev_ctx_lsm, angular_rate);
 
 #ifdef DEBUG_MODE
-      sprintf(msg, "---------- INITIALIZED ALL SENSORS ----------\n");
+      sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS ----------\n");
       HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #endif
@@ -219,7 +219,7 @@ int main(void)
   alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
+  sprintf((char *)msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -229,7 +229,7 @@ int main(void)
 	  altitude = getAltitude();
       alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
-      sprintf(msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
+      sprintf((char *)msg, "Filtered Alt =  %hu\n", (uint16_t)alt_filtered);
       HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #else
@@ -240,7 +240,7 @@ int main(void)
 
   // ---------- Launched -> Wait for apogee ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- LAUNCHED ----------\n");
+  sprintf((char *)msg, "---------- LAUNCHED ----------\n");
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -253,7 +253,7 @@ int main(void)
 
   // ---------- At apogee -> Deploy drogue ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
+  sprintf((char *)msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -272,7 +272,7 @@ int main(void)
 
   // ---------- At main deployment altitude -> Deploy main ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
+  sprintf((char *)msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
@@ -284,7 +284,7 @@ int main(void)
 
   // ---------- END OF EJECTION CODE ----------
 #ifdef DEBUG_MODE
-  sprintf(msg, "---------- EXITING EJECTION ----------\n");
+  sprintf((char *)msg, "---------- EXITING EJECTION ----------\n");
   HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
 #endif
 
