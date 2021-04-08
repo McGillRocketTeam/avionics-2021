@@ -198,7 +198,7 @@ int main(void)
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
 
   // Initialize sensors
-  // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer and light LED. Else, do smth)
+  // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer. Else, do smth)
   dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
 
@@ -324,6 +324,7 @@ int main(void)
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
 	GPS_Poll(&latitude, &longitude, &time);
+	// TODO: Add SD card
 	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
 #ifndef DEBUG_MODE
 	// Transmit via radio
@@ -806,6 +807,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			case 3:
 				// GPS
 				GPS_Poll(&latitude, &longitude, &time);
+				currTask++;
+				break;
+			case 4:
+				// Save to SD card
+				// TODO: Add SD card function here
 				currTask++;
 				break;
 			default:
