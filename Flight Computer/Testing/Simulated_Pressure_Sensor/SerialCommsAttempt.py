@@ -67,7 +67,7 @@ while (True):
         print("serial port not found, looping...\n")
         time.sleep(2)
 
-threshold = 0.005 # time threshold for time.sleep()
+threshold = 0.05 # time threshold for time.sleep()
 
 # open CSV file: https://thispointer.com/python-read-a-csv-file-line-by-line-with-or-without-header/
 # each line of form: [time, pressure, pressure (MSL), pressure (AGL)
@@ -89,12 +89,20 @@ with open ('PressureData.csv','r') as fp:
     #ser.close()
     
     while (True):
+        print(ser.in_waiting)
         nextLine = next(csv_reader)
         deltaT = float(nextLine[0]) - float(currentLine[0])
         time.sleep(deltaT - threshold)
         print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
-        if (readSerialExtractText(ser) == "0"):
-            ser.write(bytes(currentLine[0], 'utf-8'))
+
+        line = str(ser.readline()) # data in is of type 'bytes'
+        #line = line[2:-5]
+        
+        if (line[2:-5] == "0"):
+        #if (True):
+            #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
+            ser.write(bytes(str(currentLine[1]), 'utf-8'))
+            print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
         
         currentLine = nextLine # update currentLine
     
