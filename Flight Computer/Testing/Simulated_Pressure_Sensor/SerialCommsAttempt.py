@@ -39,14 +39,33 @@ while (True):
 
 import serial
 import csv
-import datetime
 import time
+
+"""
+Reads an entire line from serial port and extracts text.
+Assumes that the serial messages will have \r\n terminations
+"""
+def readSerialExtractText(serialPort):
+    line = str(serialPort.readline()) # data in is of type 'bytes'
+    return (line[2:-5])
+    
 
 
 # USART3 on FC V2 uses "38400,8,N,1"
 # change COM* as appropriate
 # use 1 second timeout in case '\n' not received for readline
-ser = serial.Serial('COM5', 38400,timeout=1)
+ser = serial.Serial()
+ser.baudrate = 38400
+ser.port = 'COM5'
+
+while (True):
+    try:
+        ser.open()
+        print("serial port opened, continuing...\n")
+        break
+    except:
+        print("serial port not found, looping...\n")
+        time.sleep(2)
 
 threshold = 0.005 # time threshold for time.sleep()
 
@@ -61,19 +80,22 @@ with open ('PressureData.csv','r') as fp:
 
     # wait for start message from serial port
     while (True):
-        line = str(ser.readline()) # read a '\n' terminated line
-        extracted = line[2:-5]     # convert to string and extract text from bytes
-        if (extracted == "start"):
+        #line = str(ser.readline()) # read a '\n' terminated line
+        #extracted = line[2:-5]     # convert to string and extract text from bytes
+        #if (extracted == "start"):
+        if (readSerialExtractText(ser) == "start"):
             break # break waiting loop, begin sending data :)
 
-    ser.close()
+    #ser.close()
     
     while (True):
-        #ser.read(
         nextLine = next(csv_reader)
         deltaT = float(nextLine[0]) - float(currentLine[0])
         time.sleep(deltaT - threshold)
         print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
+        if (readSerialExtractText(ser) == "0"):
+            ser.write(bytes(currentLine[0], 'utf-8'))
+        
         currentLine = nextLine # update currentLine
     
     
