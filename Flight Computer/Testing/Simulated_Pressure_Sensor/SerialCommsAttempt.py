@@ -46,7 +46,7 @@ import time
 # USART3 on FC V2 uses "38400,8,N,1"
 # change COM* as appropriate
 # use 1 second timeout in case '\n' not received for readline
-#ser = serial.Serial('COM5', 38400,timeout=1)
+ser = serial.Serial('COM5', 38400,timeout=1)
 
 threshold = 0.005 # time threshold for time.sleep()
 
@@ -58,6 +58,16 @@ with open ('PressureData.csv','r') as fp:
     csv_reader = csv.reader(fp, delimiter=',')
     next(csv_reader) # discard first row with headers
     currentLine = next(csv_reader) # initialize currentLine
+
+    # wait for start message from serial port
+    while (True):
+        line = str(ser.readline()) # read a '\n' terminated line
+        extracted = line[2:-5]     # convert to string and extract text from bytes
+        if (extracted == "start"):
+            break # break waiting loop, begin sending data :)
+
+    ser.close()
+    
     while (True):
         #ser.read(
         nextLine = next(csv_reader)
