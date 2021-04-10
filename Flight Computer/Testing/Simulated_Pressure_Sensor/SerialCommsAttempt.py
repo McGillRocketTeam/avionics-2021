@@ -65,9 +65,9 @@ while (True):
         break
     except:
         print("serial port not found, looping...\n")
-        time.sleep(2)
+        time.sleep(1) # sleep 1 second
 
-threshold = 0.05 # time threshold for time.sleep()
+threshold = 0.02 # time threshold for time.sleep() to adjust for program latency
 
 # open CSV file: https://thispointer.com/python-read-a-csv-file-line-by-line-with-or-without-header/
 # each line of form: [time, pressure, pressure (MSL), pressure (AGL)
@@ -76,39 +76,46 @@ threshold = 0.05 # time threshold for time.sleep()
 with open ('PressureData.csv','r') as fp:
     csv_reader = csv.reader(fp, delimiter=',')
     next(csv_reader) # discard first row with headers
+
     currentLine = next(csv_reader) # initialize currentLine
+    nextLine = currentLine
 
     # wait for start message from serial port
     while (True):
         #line = str(ser.readline()) # read a '\n' terminated line
         #extracted = line[2:-5]     # convert to string and extract text from bytes
         #if (extracted == "start"):
+        print("waiting for start")
         if (readSerialExtractText(ser) == "start"):
+            print('leave start')
             break # break waiting loop, begin sending data :)
-
-    #ser.close()
+    
     
     while (True):
         print(ser.in_waiting)
         nextLine = next(csv_reader)
+        print("nextLine = " + str(nextLine))
         deltaT = float(nextLine[0]) - float(currentLine[0])
         time.sleep(deltaT - threshold)
-        print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
+        #print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
 
-        line = str(ser.readline()) # data in is of type 'bytes'
-        #line = line[2:-5]
-        
-        if (line[2:-5] == "0"):
-        #if (True):
-            #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
-            ser.write(bytes(str(currentLine[1]), 'utf-8'))
-            print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
-        
+        if (ser.in_waiting != int(0)):
+
+            # minimize the number of bytes being read to miminize latency
+            # the serial read takes a long time
+            line = str(ser.read(1)) # data in is of type 'bytes'
+            #print(currentLine[1])
+            #ser.write(bytes(str(currentLine[1]), 'utf-8'))
+            #print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
+
+            if (line[2:-5] == "0"):
+            #if (True):
+                #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
+                ser.write(bytes(str(currentLine[1]), 'utf-8'))
+                print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
+                #print("sent")
+            
         currentLine = nextLine # update currentLine
-    
+        print("end")
     
 #ser.close()
-while (False):
-    line = ser.readline() # read a '\n' terminated line
-
-    print(line)
