@@ -99,11 +99,12 @@ with open ('PressureData.csv','r') as fp:
         time.sleep(deltaT - threshold)
         #print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
 
-        if (ser.in_waiting != int(0)):
+        if (ser.in_waiting != 0):
 
             # minimize the number of bytes being read to miminize latency
             # the serial read takes a long time
-            line = str(ser.read(1)) # data in is of type 'bytes'
+            line = str(ser.read(3)) # data in is of type 'bytes'
+            print(line)
             #print(currentLine[1])
             #ser.write(bytes(str(currentLine[1]), 'utf-8'))
             #print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
@@ -114,7 +115,9 @@ with open ('PressureData.csv','r') as fp:
                 ser.write(bytes(str(currentLine[1]), 'utf-8'))
                 print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
                 #print("sent")
-            
+            elif (line[2:-5] == "1"):
+                ser.close()
+                break
         currentLine = nextLine # update currentLine
         print("end")
     
