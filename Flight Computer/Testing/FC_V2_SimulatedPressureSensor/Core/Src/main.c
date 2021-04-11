@@ -348,17 +348,19 @@ int main(void)
 	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 
-	get_pressure(&pressure);
-
 #ifndef SIM_PRESSURE_SENSOR
 	get_pressure(dev_ctx_lps, &pressure);
 	get_temperature(dev_ctx_lps,  &temperature);
+#else
+	get_pressure(&pressure);
+	get_temperature(&temperature);
+#endif
+
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
 	GPS_Poll(&latitude, &longitude, &time);
 	// TODO: Add SD card
 	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
-#endif
 
 #ifndef DEBUG_MODE
 	// Transmit via radio
@@ -886,13 +888,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				get_temperature(dev_ctx_lps,  &temperature);
 #else
 				get_pressure(&pressure);
-				temperature = -1;
+				get_temperature(&temperature);
 #endif
 				currTask++;
 				break;
 			case 2:
 				// Acceleration/Ang Velocity
-#ifndef SIM_PRESSURE_SENSOR
+#ifndef SIM_PRESSURE_SENSOR // could remove this if testing with an lsm sensor while simulating pressure
 				get_acceleration(dev_ctx_lsm, acceleration);
 				get_angvelocity(dev_ctx_lsm, angular_rate);
 				currTask++;
@@ -904,7 +906,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 #endif
 			case 3:
 				// GPS
-#ifndef SIM_PRESSURE_SENSOR
+#ifndef SIM_PRESSURE_SENSOR // maybe remove this?
 				GPS_Poll(&latitude, &longitude, &time);
 #endif
 				currTask++;

@@ -19,6 +19,7 @@
 #define     BOOT_TIME            10 //ms
 
 //#define		DEBUG_MODE
+#define 		SIM_PRESSURE_SENSOR
 /* Private variables ---------------------------------------------------------*/
 
 // For LSM6DSR
@@ -192,18 +193,31 @@ stmdev_ctx_t lps22hh_init(void){
 	return dev_ctx_lps22hh;
 }
 
-//void get_pressure(stmdev_ctx_t dev_ctx_lps22hh, float *pressure){
-//	/* Read output only if new value is available */
-//	lps22hh_reg_t reg;
-//	lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
-//
-//	if (reg.status.p_da) {
-//	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
-//	  lps22hh_pressure_raw_get(&dev_ctx_lps22hh, &data_raw_pressure);
-//	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
-//	}
-//}
+#ifndef SIM_PRESSURE_SENSOR
+void get_pressure(stmdev_ctx_t dev_ctx_lps22hh, float *pressure){
+	/* Read output only if new value is available */
+	lps22hh_reg_t reg;
+	lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
 
+	if (reg.status.p_da) {
+	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
+	  lps22hh_pressure_raw_get(&dev_ctx_lps22hh, &data_raw_pressure);
+	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+	}
+
+	void get_temperature(stmdev_ctx_t dev_ctx_lps22hh, float *temperature){
+		/* Read output only if new value is available */
+		lps22hh_reg_t reg;
+		lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+
+		if (reg.status.t_da) {
+		  memset(&data_raw_temperature, 0x00, sizeof(int16_t));
+		  lps22hh_temperature_raw_get(&dev_ctx_lps22hh, &data_raw_temperature);
+		  *temperature = lps22hh_from_lsb_to_celsius(data_raw_temperature);
+		}
+	}
+}
+#else
 void get_pressure(float *pressure) {
 	// first need to transmit a '0\r\n'
 	// so that the script knows to send a value
@@ -244,17 +258,46 @@ void get_pressure(float *pressure) {
 
 }
 
-void get_temperature(stmdev_ctx_t dev_ctx_lps22hh, float *temperature){
-	/* Read output only if new value is available */
-	lps22hh_reg_t reg;
-	lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+void get_temperature(float *temperature) {
+	// first need to transmit a '1\n'
+	// so that the script knows to send a temperature value
+	uint8_t startMessage[] = "1\n";
 
-	if (reg.status.t_da) {
-	  memset(&data_raw_temperature, 0x00, sizeof(int16_t));
-	  lps22hh_temperature_raw_get(&dev_ctx_lps22hh, &data_raw_temperature);
-	  *temperature = lps22hh_from_lsb_to_celsius(data_raw_temperature);
+	#ifdef DEBUG_MODE
+	  sprintf((char *)msg, "---------- ENTERED get_temperature ----------\nstartMessage = \n");
+	  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 100);
+	#endif
+
+	uint32_t timeout = 1000;
+	HAL_UART_Transmit(&huart3, startMessage, sizeof(startMessage), timeout);
+
+	// now receive input from script
+	uint16_t max_loop_count = 10;
+	uint16_t loop_count = 0;
+
+	uint8_t rxBuf[10]; // buffer of 10 chars
+	uint8_t rxCurrent; // current receive char
+	uint8_t rxIndex = 0;
+
+	int done = 0;
+	while (loop_count < max_loop_count && !done) {
+		HAL_UART_Receive(&huart3, (uint8_t*) &rxCurrent, 1, timeout);
+		if (rxCurrent != '\n' && rxIndex < sizeof(rxBuf)) {
+			rxBuf[rxIndex++] = rxCurrent;
+		} else {
+			// convert to uint32_t as data_raw_pressure
+			data_raw_temperature = (int16_t) (atoi((char *) rxBuf));
+			//*temperature = lps22hh_from_lsb_to_celsius(data_raw_temperature);
+//			*temperature = (float) (data_raw_temperature / 100.0f);
+			*temperature = (float) data_raw_temperature;
+			memset(rxBuf, 0, sizeof(rxBuf));
+			done = 1;
+		}
+		__HAL_UART_CLEAR_FLAG(&huart3, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
+		loop_count++;
 	}
 }
+#endif
 
 
 /* Platform Dependent Sensor Read/Write Functions ----------------------------*/
