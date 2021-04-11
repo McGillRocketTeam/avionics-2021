@@ -39,16 +39,7 @@ while (True):
 
 import serial
 import csv
-import time
-
-"""
-Reads an entire line from serial port and extracts text.
-Assumes that the serial messages will have \r\n terminations
-"""
-def readSerialExtractText(serialPort):
-    line = str(serialPort.readline()) # data in is of type 'bytes'
-    return (line[2:-5])
-    
+import time    
 
 
 # USART3 on FC V2 uses "38400,8,N,1"
@@ -56,7 +47,12 @@ def readSerialExtractText(serialPort):
 # use 1 second timeout in case '\n' not received for readline
 ser = serial.Serial()
 ser.baudrate = 38400
-ser.port = 'COM5'
+#ser.port = 'COM5'
+ser.port = 'COM11'
+
+startValue = "0" # value received from microcontroller to send altitude
+stopValue = "1" # value to terminate program 
+threshold = 0.02 # time threshold for time.sleep() to adjust for program latency
 
 while (True):
     try:
@@ -66,8 +62,6 @@ while (True):
     except:
         print("serial port not found, looping...\n")
         time.sleep(1) # sleep 1 second
-
-threshold = 0.02 # time threshold for time.sleep() to adjust for program latency
 
 # open CSV file: https://thispointer.com/python-read-a-csv-file-line-by-line-with-or-without-header/
 # each line of form: [time, pressure, pressure (MSL), pressure (AGL)
@@ -82,17 +76,26 @@ with open ('PressureData.csv','r') as fp:
 
     # wait for start message from serial port
     while (True):
+        break # this aint working let's just bypass
+    
         #line = str(ser.readline()) # read a '\n' terminated line
         #extracted = line[2:-5]     # convert to string and extract text from bytes
-        #if (extracted == "start"):
         print("waiting for start")
-        if (readSerialExtractText(ser) == "start"):
-            print('leave start')
-            break # break waiting loop, begin sending data :)
+        print("bytes in rx buffer: " + str(ser.in_waiting))
+        print("bytes in tx buffer: " + str(ser.out_waiting))
+        
+        if (ser.in_waiting != 0):
+            line = str(ser.read(1)) # data in is of type 'bytes'
+            print(line)
+            if (line == startValue):
+                print('leave start')
+                break # break waiting loop, begin sending data :)
+        time.sleep(0.5)
     
     
     while (True):
-        print(ser.in_waiting)
+        print("bytes in rx: " + str(ser.in_waiting))
+        #print("bytes in tx: " + str(ser.out_waiting))
         nextLine = next(csv_reader)
         print("nextLine = " + str(nextLine))
         deltaT = float(nextLine[0]) - float(currentLine[0])
@@ -103,22 +106,25 @@ with open ('PressureData.csv','r') as fp:
 
             # minimize the number of bytes being read to miminize latency
             # the serial read takes a long time
-            line = str(ser.read(3)) # data in is of type 'bytes'
-            print(line)
+            line = str(ser.read(1)) # data in is of type 'bytes'
+            #print(line)
             #print(currentLine[1])
             #ser.write(bytes(str(currentLine[1]), 'utf-8'))
             #print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
 
-            if (line[2:-5] == "0"):
+            if (line[-2] == startValue):
             #if (True):
                 #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
-                ser.write(bytes(str(currentLine[1]), 'utf-8'))
+                toTransmit = str(currentLine[1]) + "\n"
+
+                print(repr("to transmit: " + toTransmit))
+
+                ser.write(bytes(toTransmit, 'utf-8'))
                 print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
                 #print("sent")
-            elif (line[2:-5] == "1"):
-                ser.close()
+            elif (line[-2] == stopValue):
+                ser.close() # close the port
                 break
         currentLine = nextLine # update currentLine
-        print("end")
+        
     
-#ser.close()
