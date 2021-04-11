@@ -60,7 +60,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define LED_Status_Pin GPIO_PIN_14
+#define LED_Status_Pin GPIO_PIN_13
 #define LED_Status_GPIO_Port GPIOC
 #define Button_Pin GPIO_PIN_3
 #define Button_GPIO_Port GPIOC

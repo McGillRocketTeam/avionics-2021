@@ -9,17 +9,17 @@ CDefines=USE_HAL_DRIVER;STM32F303xE;USE_HAL_DRIVER;USE_HAL_DRIVER;
 [PreviousGenFiles]
 AdvancedFolderStructure=true
 HeaderFileListSize=3
-HeaderFiles#0=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Inc/stm32f3xx_it.h
-HeaderFiles#1=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Inc/stm32f3xx_hal_conf.h
-HeaderFiles#2=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Inc/main.h
+HeaderFiles#0=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Inc/stm32f3xx_it.h
+HeaderFiles#1=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Inc/stm32f3xx_hal_conf.h
+HeaderFiles#2=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Inc/main.h
 HeaderFolderListSize=1
-HeaderPath#0=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Inc
+HeaderPath#0=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Inc
 HeaderFiles=;
 SourceFileListSize=3
-SourceFiles#0=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Src/stm32f3xx_it.c
-SourceFiles#1=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Src/stm32f3xx_hal_msp.c
-SourceFiles#2=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Src/main.c
+SourceFiles#0=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Src/stm32f3xx_it.c
+SourceFiles#1=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Src/stm32f3xx_hal_msp.c
+SourceFiles#2=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Src/main.c
 SourceFolderListSize=1
-SourcePath#0=C:/Users/holyc/dev/avionics-2021/Flight Computer/Flight Computer/FC_V2/Core/Src
+SourcePath#0=C:/Users/JO/Desktop/Rocket Team/00 STM32 Workspace/avionics-2021/Flight Computer/Testing/FC_V2_SimulatedPressureSensor/Core/Src
 SourceFiles=;
 

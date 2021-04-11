@@ -42,6 +42,7 @@
 #define		DEBUG_MODE
 //#define		CONFIG_TIME
 //#define		TRANSMIT_RADIO
+#define 	SIM_PRESSURE_SENSOR
 // ------------------------------------------------- //
 
 /* USER CODE END PD */
@@ -136,9 +137,13 @@ extern void get_acceleration(stmdev_ctx_t dev_ctx, float *acceleration_mg);
 extern void get_angvelocity(stmdev_ctx_t dev_ctx, float *angular_rate_mdps);
 
 // LPS22HH functions
-extern stmdev_ctx_t lps22hh_init(void);
-extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
-extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
+#ifdef SIM_PRESSURE_SENSOR
+  extern void get_pressure(float *pressure);
+#else
+  extern stmdev_ctx_t lps22hh_init(void);
+  extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
+  extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
+#endif
 
 // GPS functions
 void GPS_Poll(float*, float*, float*);
@@ -190,7 +195,17 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  // INDICATE TO SCRIPT TO START READING ALTITUDE VALUES FROM CSV
+#ifdef SIM_PRESSURE_SENSOR
+  sprintf((char *)msg, "---------- TELL SCRIPT TO START ----------\n");
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+
+  sprintf((char *)msg, "S"); // transmit s to start
+  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#endif
+
   // Reset GPIOs
+  HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
@@ -199,15 +214,22 @@ int main(void)
 
   // Initialize sensors
   // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer. Else, do smth)
+#ifndef SIM_PRESSURE_SENSOR
   dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
+#endif
+
 
   // Get initial sensor values
-  get_pressure(dev_ctx_lps, &pressure);
-  get_temperature(dev_ctx_lps,  &temperature);
   get_acceleration(dev_ctx_lsm, acceleration);
   get_angvelocity(dev_ctx_lsm, angular_rate);
   GPS_Poll(&latitude, &longitude, &time);
+#ifndef SIM_PRESSURE_SENSOR
+  get_pressure(dev_ctx_lps, &pressure);
+  get_temperature(dev_ctx_lps,  &temperature);
+#else
+  get_pressure(&pressure);
+#endif
 
 #ifdef DEBUG_MODE
       sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS ----------\n");
@@ -319,6 +341,10 @@ int main(void)
   {
 	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+
+	get_pressure(&pressure);
+
+#ifndef SIM_PRESSURE_SENSOR
 	get_pressure(dev_ctx_lps, &pressure);
 	get_temperature(dev_ctx_lps,  &temperature);
 	get_acceleration(dev_ctx_lsm, acceleration);
@@ -326,6 +352,8 @@ int main(void)
 	GPS_Poll(&latitude, &longitude, &time);
 	// TODO: Add SD card
 	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
+#endif
+
 #ifndef DEBUG_MODE
 	// Transmit via radio
 	// TODO: Replace with RnD radio
@@ -355,14 +383,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
-                              |RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -378,7 +404,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -773,7 +799,11 @@ static void MX_GPIO_Init(void)
 // TODO: Move this to sensor_functions.c
 uint32_t getAltitude(){
 	readingLps = 1;
+#ifndef SIM_PRESSURE_SENSOR
 	get_pressure(dev_ctx_lps, &pressure);
+#else
+	get_pressure(&pressure);
+#endif
 	readingLps = 0;
 	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
@@ -794,19 +824,33 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				if (readingLps != 0){		// Yield to ejection if it has control of the LPS sensor
 					break;
 				}
+
+#ifndef SIM_PRESSURE_SENSOR
 				get_pressure(dev_ctx_lps, &pressure);
 				get_temperature(dev_ctx_lps,  &temperature);
+#else
+				get_pressure(&pressure);
+				temperature = -1;
+#endif
 				currTask++;
 				break;
 			case 2:
 				// Acceleration/Ang Velocity
+#ifndef SIM_PRESSURE_SENSOR
 				get_acceleration(dev_ctx_lsm, acceleration);
 				get_angvelocity(dev_ctx_lsm, angular_rate);
 				currTask++;
 				break;
+#else
+				sprintf((char *)tx_buffer, "acceleration = nada, angvelocity = chacha\n");
+				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
+				currTask++;
+#endif
 			case 3:
 				// GPS
+#ifndef SIM_PRESSURE_SENSOR
 				GPS_Poll(&latitude, &longitude, &time);
+#endif
 				currTask++;
 				break;
 			case 4:

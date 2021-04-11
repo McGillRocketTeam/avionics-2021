@@ -10,14 +10,15 @@
 #include "main.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "lsm6dsr_reg.h"
 #include "lps22hh_reg.h"
 #include "stm32f3xx_hal.h"
 
-
 /* Private macro -------------------------------------------------------------*/
-#define    BOOT_TIME            10 //ms
+#define     BOOT_TIME            10 //ms
 
+#define		DEBUG_MODE
 /* Private variables ---------------------------------------------------------*/
 
 // For LSM6DSR
@@ -31,6 +32,11 @@ static uint32_t data_raw_pressure;
 static int16_t data_raw_temperature;
 static uint8_t whoamI_lps22hh, rst_lps22hh;
 
+// Transmission buffer
+static uint8_t tx_buffer[TX_BUF_DIM];
+#ifdef DEBUG_MODE
+static uint8_t msg[1000];
+#endif
 
 /* Extern variables ----------------------------------------------------------*/
 
@@ -187,16 +193,59 @@ stmdev_ctx_t lps22hh_init(void){
 	return dev_ctx_lps22hh;
 }
 
-void get_pressure(stmdev_ctx_t dev_ctx_lps22hh, float *pressure){
-	/* Read output only if new value is available */
-	lps22hh_reg_t reg;
-	lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+//void get_pressure(stmdev_ctx_t dev_ctx_lps22hh, float *pressure){
+//	/* Read output only if new value is available */
+//	lps22hh_reg_t reg;
+//	lps22hh_read_reg(&dev_ctx_lps22hh, LPS22HH_STATUS, (uint8_t *)&reg, 1);
+//
+//	if (reg.status.p_da) {
+//	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
+//	  lps22hh_pressure_raw_get(&dev_ctx_lps22hh, &data_raw_pressure);
+//	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+//	}
+//}
 
-	if (reg.status.p_da) {
-	  memset(&data_raw_pressure, 0x00, sizeof(uint32_t));
-	  lps22hh_pressure_raw_get(&dev_ctx_lps22hh, &data_raw_pressure);
-	  *pressure = lps22hh_from_lsb_to_hpa( data_raw_pressure);
+void get_pressure(float *pressure) {
+	// first need to transmit a '0\r\n'
+	// so that the script knows to send a value
+	// need the \n since script uses readline() and searches for \n termination
+	uint8_t startMessage[] = "0\n";
+
+	#ifdef DEBUG_MOD
+	  sprintf((char *)msg, "---------- ENTERED get_pressure ----------\nstartMessage = \n");
+	  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 5);
+	#endif
+
+	uint32_t timeout = 1000;
+	HAL_UART_Transmit(&huart3, startMessage, sizeof(startMessage), timeout);
+
+	// now receive input from script
+	uint16_t max_loop_count = 10;
+	uint16_t loop_count = 0;
+
+	uint8_t rxBuf[10]; // buffer of 10 chars
+	uint8_t rxCurrent; // current receive char
+	uint8_t rxIndex = 0;
+
+	int done = 0;
+	while (loop_count < max_loop_count && !done) {
+		HAL_UART_Receive(&huart3, (uint8_t*) &rxCurrent, 1, timeout);
+		if (rxCurrent != '\n' && rxIndex < sizeof(rxBuf)) {
+			rxBuf[rxIndex++] = rxCurrent;
+		} else {
+			// convert to uint32_t as data_raw_pressure
+			data_raw_pressure = (uint32_t) (atoi((char *) rxBuf));
+			*pressure = (float) data_raw_pressure;
+			memset(rxBuf, 0, sizeof(rxBuf));
+			done = 1;
+		}
+		__HAL_UART_CLEAR_FLAG(&huart3, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
+		loop_count++;
 	}
+
+	sprintf((char *)msg, "in pressure = %d\n", (uint32_t) data_raw_pressure);
+	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 5000);
+
 }
 
 void get_temperature(stmdev_ctx_t dev_ctx_lps22hh, float *temperature){
