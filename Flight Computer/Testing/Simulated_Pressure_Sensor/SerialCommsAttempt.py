@@ -49,6 +49,7 @@ ser = serial.Serial()
 ser.baudrate = 38400
 #ser.port = 'COM5'
 ser.port = 'COM11'
+ser.timeout = 1 # 1 second
 
 startValue = "0" # value received from microcontroller to send altitude
 stopValue = "1" # value to terminate program 
@@ -106,13 +107,18 @@ with open ('PressureData.csv','r') as fp:
 
             # minimize the number of bytes being read to miminize latency
             # the serial read takes a long time
-            line = str(ser.read(1)) # data in is of type 'bytes'
-            #print(line)
+
+            #line = str(ser.read(1)) # data in is of type 'bytes'
+            line = str(ser.readline())
+            if len(line) > 10:
+                line = "invalid"
+            
+            print(line)
             #print(currentLine[1])
             #ser.write(bytes(str(currentLine[1]), 'utf-8'))
             #print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
 
-            if (line[-2] == startValue):
+            if (line[-4] == startValue):
             #if (True):
                 #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
                 toTransmit = str(currentLine[1]) + "\n"
@@ -122,7 +128,7 @@ with open ('PressureData.csv','r') as fp:
                 ser.write(bytes(toTransmit, 'utf-8'))
                 print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
                 #print("sent")
-            elif (line[-2] == stopValue):
+            elif (line[-4] == stopValue):
                 ser.close() # close the port
                 break
         currentLine = nextLine # update currentLine
