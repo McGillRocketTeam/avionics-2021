@@ -7,17 +7,10 @@ The program will read pressure values from a CSV file,
 line-by-line, and transmit them over the serial port to
 the other device.
 
-Author: Jasper Yun
-Date:   2021-04-09
-
 Pseudocode:
-- open CSV and prepare to read line by line
 - open serial port and verify that port opened without errors
-while (True):
-    wait for FC to indicate it has turned on (some start message)
-    (read serial buffer and wait)
+- open CSV and prepare to read line by line
 
-get current time (need to be precise)
 get one line from CSV and have time and pressure values
     -> this is the initial 
 get next line from CSV
@@ -55,6 +48,7 @@ startValue = "0" # value received from microcontroller to send altitude
 stopValue = "1" # value to terminate program 
 threshold = 0.02 # time threshold for time.sleep() to adjust for program latency
 
+# attempt to open serial port
 while (True):
     try:
         ser.open()
@@ -75,25 +69,6 @@ with open ('PressureData.csv','r') as fp:
     currentLine = next(csv_reader) # initialize currentLine
     nextLine = currentLine
 
-    # wait for start message from serial port
-    while (True):
-        break # this aint working let's just bypass
-    
-        #line = str(ser.readline()) # read a '\n' terminated line
-        #extracted = line[2:-5]     # convert to string and extract text from bytes
-        print("waiting for start")
-        print("bytes in rx buffer: " + str(ser.in_waiting))
-        print("bytes in tx buffer: " + str(ser.out_waiting))
-        
-        if (ser.in_waiting != 0):
-            line = str(ser.read(1)) # data in is of type 'bytes'
-            print(line)
-            if (line == startValue):
-                print('leave start')
-                break # break waiting loop, begin sending data :)
-        time.sleep(0.5)
-    
-    
     while (True):
         print("bytes in rx: " + str(ser.in_waiting))
         #print("bytes in tx: " + str(ser.out_waiting))
@@ -107,30 +82,27 @@ with open ('PressureData.csv','r') as fp:
 
             # minimize the number of bytes being read to miminize latency
             # the serial read takes a long time
-
             #line = str(ser.read(1)) # data in is of type 'bytes'
+
+            # readline is quite slow...not sure how to work around that yet
             line = str(ser.readline())
-            if len(line) > 10:
+            if len(line) > 10: # debug messages printed on uart3 will be ignored
                 line = "invalid"
             
             print(line)
-            #print(currentLine[1])
-            #ser.write(bytes(str(currentLine[1]), 'utf-8'))
-            #print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
-
+            
             if (line[-4] == startValue):
-            #if (True):
-                #ser.write(bytes(str(currentLine[1] + "\r\n"), 'utf-8'))
                 toTransmit = str(currentLine[1]) + "\n"
 
-                print(repr("to transmit: " + toTransmit))
+                #print(repr("to transmit: " + toTransmit)) # check transmitted message
 
                 ser.write(bytes(toTransmit, 'utf-8'))
                 print("sent: \t Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
-                #print("sent")
+
             elif (line[-4] == stopValue):
                 ser.close() # close the port
                 break
+            
         currentLine = nextLine # update currentLine
         
     
