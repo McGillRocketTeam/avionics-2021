@@ -46,7 +46,7 @@ ser.timeout = 1 # 1 second
 
 startValue = "0" # value received from microcontroller to send altitude
 stopValue = "1" # value to terminate program 
-threshold = 0.02 # time threshold for time.sleep() to adjust for program latency
+threshold = 0.1 # time threshold for time.sleep() to adjust for program latency
 
 # attempt to open serial port
 while (True):
