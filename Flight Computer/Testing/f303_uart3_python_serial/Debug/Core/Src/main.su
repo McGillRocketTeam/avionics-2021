@@ -1,0 +1,7 @@
+main.c:77:5:main	416	static
+main.c:136:6:get_pressure	56	static
+main.c:183:6:SystemClock_Config	160	static
+main.c:230:13:MX_USART2_UART_Init	8	static
+main.c:265:13:MX_USART3_UART_Init	8	static
+main.c:300:13:MX_GPIO_Init	48	static
+main.c:346:6:Error_Handler	4	static,ignoring_inline_asm
