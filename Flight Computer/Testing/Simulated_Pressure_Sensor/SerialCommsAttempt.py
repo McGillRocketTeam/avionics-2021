@@ -7,6 +7,11 @@ The program will read pressure values from a CSV file,
 line-by-line, and transmit them over the serial port to
 the other device.
 
+Dependencies:
+    - CSV
+    - PySerial
+    - Time
+
 Pseudocode:
 - open serial port and verify that port opened without errors
 - open CSV and prepare to read line by line
