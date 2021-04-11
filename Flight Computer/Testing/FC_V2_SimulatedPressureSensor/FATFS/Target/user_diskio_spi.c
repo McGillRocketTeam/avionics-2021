@@ -38,8 +38,8 @@ extern SPI_HandleTypeDef SD_SPI_HANDLE;
 #define FCLK_SLOW() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_128); }	/* Set SCLK = slow, approx 280 KBits/s*/
 #define FCLK_FAST() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_8); }	/* Set SCLK = fast, approx 4.5 MBits/s */
 
-#define CS_HIGH()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);}
-#define CS_LOW()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);}
+#define CS_HIGH()	{HAL_GPIO_WritePin(SPI2_CS_SD_GPIO_Port, SPI2_CS_SD_Pin, GPIO_PIN_SET);}
+#define CS_LOW()	{HAL_GPIO_WritePin(SPI2_CS_SD_GPIO_Port, SPI2_CS_SD_Pin, GPIO_PIN_RESET);}
 
 /*--------------------------------------------------------------------------
 

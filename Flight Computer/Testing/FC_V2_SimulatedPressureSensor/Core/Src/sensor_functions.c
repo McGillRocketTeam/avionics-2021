@@ -18,7 +18,7 @@
 /* Private macro -------------------------------------------------------------*/
 #define     BOOT_TIME            10 //ms
 
-#define		DEBUG_MODE
+//#define		DEBUG_MODE
 /* Private variables ---------------------------------------------------------*/
 
 // For LSM6DSR
@@ -33,7 +33,6 @@ static int16_t data_raw_temperature;
 static uint8_t whoamI_lps22hh, rst_lps22hh;
 
 // Transmission buffer
-static uint8_t tx_buffer[TX_BUF_DIM];
 #ifdef DEBUG_MODE
 static uint8_t msg[1000];
 #endif
@@ -211,7 +210,7 @@ void get_pressure(float *pressure) {
 	// need the \n since script uses readline() and searches for \n termination
 	uint8_t startMessage[] = "0\n";
 
-	#ifdef DEBUG_MOD
+	#ifdef DEBUG_MODE
 	  sprintf((char *)msg, "---------- ENTERED get_pressure ----------\nstartMessage = \n");
 	  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 5);
 	#endif
@@ -242,9 +241,6 @@ void get_pressure(float *pressure) {
 		__HAL_UART_CLEAR_FLAG(&huart3, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
 		loop_count++;
 	}
-
-	sprintf((char *)msg, "in pressure = %d\n", (uint32_t) data_raw_pressure);
-	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 5000);
 
 }
 

@@ -38,7 +38,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define 	DEBUG_MODE
+//#define 	DEBUG_MODE
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -46,6 +46,7 @@ UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
 static uint32_t data_raw_pressure;
+static int16_t data_raw_temperature;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -57,16 +58,14 @@ static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void get_pressure(float *pressure);
+void get_temperature(float *temperature);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 // Transmission buffer
-static uint8_t tx_buffer[100];
-#ifdef DEBUG_MODE
 static uint8_t msg[1000];
-#endif
 
 /* USER CODE END 0 */
 
@@ -116,12 +115,13 @@ int main(void)
 	  HAL_GPIO_TogglePin(LED_Status_GPIO_Port, LED_Status_Pin);
 	  if (counter == sizeof(altitudes) - 1)
 	  		  counter = 0;
-	  float pressure;
+	  float pressure, temperature;
 	  get_pressure(&pressure);
+	  get_temperature(&temperature);
 //	  altitudes[counter++] = pressure;
 
 	  // debug
-	  sprintf((char *)msg, "pressure = %d\n", (uint32_t) pressure);
+	  sprintf((char *)msg, "pressure = %lu\ttemperature = %d\n", (uint32_t) pressure, (int16_t) temperature);
 	  HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 5000);
 
 
@@ -134,9 +134,8 @@ int main(void)
 
 
 void get_pressure(float *pressure) {
-	// first need to transmit a '0\r\n'
-	// so that the script knows to send a value
-	// can probably remove the \r\n to decrease latency
+	// first need to transmit a '0\n'
+	// so that the script knows to send altitude value
 	uint8_t startMessage[] = "0\n";
 
 	#ifdef DEBUG_MODE
@@ -170,11 +169,62 @@ void get_pressure(float *pressure) {
 		__HAL_UART_CLEAR_FLAG(&huart3, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
 		loop_count++;
 	}
-
-	sprintf((char *)msg, "in pressure = %d\n", (uint32_t) data_raw_pressure);
+#ifdef DEBUG_MODE
+	sprintf((char *)msg, "in pressure = %lu\n", (uint32_t) data_raw_pressure);
 	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 5000);
+#endif
 }
 
+/*
+ * This function is almost identical to get_pressure but it is implemented
+ * separately to emulate FC V2 code as closely as possible.
+ *
+ * The only changes are to the start message (use 1 instead of 0) and the
+ * variable that the result gets stored to.
+ */
+void get_temperature(float *temperature) {
+	// first need to transmit a '1\n'
+	// so that the script knows to send a temperature value
+	uint8_t startMessage[] = "1\n";
+
+	#ifdef DEBUG_MODE
+	  sprintf((char *)msg, "---------- ENTERED get_temperature ----------\nstartMessage = \n");
+	  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 100);
+	#endif
+
+	uint32_t timeout = 1000;
+	HAL_UART_Transmit(&huart3, startMessage, sizeof(startMessage), timeout);
+
+	// now receive input from script
+	uint16_t max_loop_count = 10;
+	uint16_t loop_count = 0;
+
+	uint8_t rxBuf[10]; // buffer of 10 chars
+	uint8_t rxCurrent; // current receive char
+	uint8_t rxIndex = 0;
+
+	int done = 0;
+	while (loop_count < max_loop_count && !done) {
+		HAL_UART_Receive(&huart3, (uint8_t*) &rxCurrent, 1, timeout);
+		if (rxCurrent != '\n' && rxIndex < sizeof(rxBuf)) {
+			rxBuf[rxIndex++] = rxCurrent;
+		} else {
+			// convert to uint32_t as data_raw_pressure
+			data_raw_temperature = (int16_t) (atoi((char *) rxBuf));
+			//*temperature = lps22hh_from_lsb_to_celsius(data_raw_temperature);
+//			*temperature = (float) (data_raw_temperature / 100.0f);
+			*temperature = (float) data_raw_temperature;
+			memset(rxBuf, 0, sizeof(rxBuf));
+			done = 1;
+		}
+		__HAL_UART_CLEAR_FLAG(&huart3, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
+		loop_count++;
+	}
+#ifdef DEBUG_MODE
+	sprintf((char *)msg, "in temperature = %d\n", (int16_t) data_raw_pressure);
+	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 5000);
+#endif
+}
 
 /**
   * @brief System Clock Configuration

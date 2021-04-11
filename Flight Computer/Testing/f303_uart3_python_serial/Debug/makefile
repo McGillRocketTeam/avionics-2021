@@ -61,8 +61,8 @@ all: main-build
 main-build: f303_uart3_python_serial.elf secondary-outputs
 
 # Tool invocations
-f303_uart3_python_serial.elf: $(OBJS) $(USER_OBJS) C:\Users\JO\Desktop\Rocket\ Team\00\ STM32\ Workspace\f303_uart3_python_serial\STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "f303_uart3_python_serial.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\JO\Desktop\Rocket Team\00 STM32 Workspace\f303_uart3_python_serial\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_uart3_python_serial.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+f303_uart3_python_serial.elf: $(OBJS) $(USER_OBJS) C:\Users\JO\Desktop\Rocket\ Team\00\ STM32\ Workspace\avionics-2021\Flight\ Computer\Testing\f303_uart3_python_serial\STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "f303_uart3_python_serial.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\JO\Desktop\Rocket Team\00 STM32 Workspace\avionics-2021\Flight Computer\Testing\f303_uart3_python_serial\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_uart3_python_serial.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
