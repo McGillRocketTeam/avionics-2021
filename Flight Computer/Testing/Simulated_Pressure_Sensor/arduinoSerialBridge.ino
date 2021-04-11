@@ -4,31 +4,22 @@ SoftwareSerial mySerial(10, 11); // RX, TX
 
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(38400);
-  mySerial.begin(38400);
-  mySerial.println("H");
+  Serial.begin(38400); 		// serial between Arduino and PC
+  mySerial.begin(38400);	// serial between STM32 and Arduino
+  mySerial.println("H");	// not necessary but it's here anyway
 }
 
 
-char rxBuf[100];
-int counter = 0;
 void loop() {
-  // put your main code here, to run repeatedly:
-  if (mySerial.available() > 0)
+  
+  if (mySerial.available() > 0)		// if STM32 sends data, pass it to PC
   {
     Serial.write(mySerial.read());
   }
 
-  if (Serial.available())
+  if (Serial.available())			// if PC hsends data, pass it to STM32
   {
     mySerial.write(Serial.read());
   }
   
 }
-
-
-//    while (Serial.available())
-//      rxBuf[counter++] = Serial.read();
-//    counter = 0;
-////    Serial.println((char *) rxBuf);
