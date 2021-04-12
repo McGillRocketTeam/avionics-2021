@@ -119,6 +119,11 @@ RTC_TimeTypeDef stimestructureget;
 // Timer variable
 volatile uint8_t currTask = 0;
 
+// SD card FatFS variables
+FATFS FatFs; 	//Fatfs handle, may need to be static
+FIL fil; 		//File handle
+FRESULT fres; 	//Result after operations
+
 
 /* USER CODE END PV */
 
@@ -143,6 +148,7 @@ extern void get_angvelocity(stmdev_ctx_t dev_ctx, float *angular_rate_mdps);
 // LPS22HH functions
 #ifdef SIM_PRESSURE_SENSOR
   extern void get_pressure(float *pressure);
+  extern void get_temperature(float *temperature);
 #else
   extern stmdev_ctx_t lps22hh_init(void);
   extern void get_pressure(stmdev_ctx_t dev_ctx,  float *pressure);
@@ -154,6 +160,9 @@ void GPS_Poll(float*, float*, float*);
 
 // Convert pressure to altitude function
 uint32_t getAltitude();
+
+// SD initialization with new file and initial write
+FRESULT sd_init();
 
 /* USER CODE END PFP */
 
@@ -206,13 +215,13 @@ int main(void)
   sprintf((char *)msg, "---------- TELL SCRIPT TO START ----------\n");
   HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 
-  sprintf((char *)msg, "S"); // transmit s to start
+  sprintf((char *)msg, "S\n"); // transmit s to start
   HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 
   // Reset GPIOs
-  HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED_Status_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
@@ -235,6 +244,7 @@ int main(void)
   get_temperature(dev_ctx_lps,  &temperature);
 #else
   get_pressure(&pressure);
+  get_temperature(&temperature);
 #endif
 
 #ifdef DEBUG_MODE
@@ -253,6 +263,13 @@ int main(void)
   HAL_Delay(5000);		// Turning off buzzer in debug mode because it really b annoying
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
+
+  // initialize SD card and open file to begin writing
+  fres = sd_init();
+  if (fres != FR_OK)
+  {
+	  // TODO: do some error handling, @jennie idk how you want to do this
+  }
 
   // ---------- START OF EJECTION CODE ----------
   uint32_t altitude = 0;
@@ -865,6 +882,67 @@ uint32_t getAltitude(){
 	readingLps = 0;
 	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
+}
+
+/*
+ * performs initialization for sd card.
+ * mounts the sd card, creates new file for data logging, and
+ * writes row of headers for the data into the file.
+ *
+ * returns FR_OK if all operations complete without error.
+ * otherwise returns FRESULT (not FR_OK) to indicate error occurred.
+ *
+ */
+FRESULT sd_init() {
+	//Open the file system
+	FRESULT fres = f_mount(&FatFs, "", 1); // 1 = mount now
+	if (fres != FR_OK) {
+#ifdef DEBUG_MODE
+		sprintf((char *)msg, "SD f_mount failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#endif
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+		return fres;
+    }
+
+	// get current date and time to create new file for data logging
+	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+
+    char filename[35];
+	sprintf(filename, "datalog_%hu%hu%hu_%hu%hu%hu.txt",
+			(uint16_t) sdatestructureget.Year,  (uint16_t) sdatestructureget.Month, (uint16_t) sdatestructureget.Date,
+	  	    (uint16_t) stimestructureget.Hours, (uint16_t) stimestructureget.Minutes, (uint16_t) stimestructureget.Seconds);
+	fres = f_open(&fil, filename, FA_WRITE | FA_OPEN_ALWAYS);
+
+	if (fres != FR_OK) {
+#ifdef DEBUG_MODE
+		sprintf((char *)msg, "SD file open failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#endif
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	    return fres;
+	  }
+
+	  // write data headers (time, altitude, temp, etc.)
+	char sdHeader[] = "Hour,Minute,Second,Temperature(C),Pressure(hPA),Accelx,Magx,Long,Lat,Time(GPS)\n";
+	UINT bytesWrote;
+	fres = f_write(&fil, sdHeader, strlen(sdHeader), &bytesWrote);
+	if(fres == FR_OK) {
+#ifdef DEBUG_MODE
+		printf((char *)msg, "SD header write successful, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#endif
+	} else {
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+#ifdef DEBUG_MODE
+		sprintf((char *)msg, "SD header write failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#endif
+		return fres;
+	}
+
+	return fres; // if this line is reached then fres = FR_OK
 }
 
 // Callbacks
