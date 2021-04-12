@@ -59,7 +59,14 @@ sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, c
  *
  * @returns Operation status
  */
-sx126x_hal_status_t sx126x_hal_reset( const void* context );
+sx126x_hal_status_t sx126x_hal_reset( const void* hspi ){
+
+	if(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_RESET){
+		HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_RESET);
+		HAL_Delay(5);
+		HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_SET);
+	}
+}
 
 /**
  * Wake the radio up.
@@ -70,5 +77,10 @@ sx126x_hal_status_t sx126x_hal_reset( const void* context );
  *
  * @returns Operation status
  */
-sx126x_hal_status_t sx126x_hal_wakeup( const void* context );
+sx126x_hal_status_t sx126x_hal_wakeup( const void* hspi ){
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_Delay(1);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+}
 

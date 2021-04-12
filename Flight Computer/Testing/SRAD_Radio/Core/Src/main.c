@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "sx126x_hal.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -155,8 +154,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	TxProtocol();
-	HAL_Delay(500);
 
     /* USER CODE BEGIN 3 */
   }
