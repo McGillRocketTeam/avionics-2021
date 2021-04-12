@@ -56,7 +56,59 @@ static void MX_SPI1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void transmitStatus(HAL_StatusTypeDef status){
+  if(status == HAL_OK){
+    HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_OK\n", 15, 100);
+  } else if(status == HAL_ERROR){
+    HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
+  } else if(status == HAL_BUSY){
+    HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
+  } else if(status == HAL_TIMEOUT){
+    HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
+  } else {
+    HAL_UART_Transmit(&huart3, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
+  }
+}
 
+void transmitBuffer(char buffer[]){
+  uint8_t length = 0;
+  while(buffer[length] != 0){
+    length++;
+  }
+  HAL_UART_Transmit(&huart3, (uint8_t*)buffer, length, 100);
+}
+
+HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams){
+  HAL_StatusTypeDef status;
+  if(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_RESET){
+    HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+    status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
+    status = HAL_SPI_Transmit(&hspi1, (uint8_t*)params, numOfParams, 100);
+    HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+  }
+  return status;
+}
+
+HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t buffer[], uint16_t numOfParams){
+  HAL_StatusTypeDef status;
+  if(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_RESET){
+    HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+    status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
+    status = HAL_SPI_Receive(&hspi1, (uint8_t*)buffer, numOfParams, 100);
+    HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+  }
+  return status;
+}
+
+void TxProtocol(){
+  //1. Set to standby mode
+  uint8_t opcode = 128; //0x80
+  uint8_t params[1] = {0};
+  uint16_t numParams = 1;
+  HAL_StatusTypeDef status = writeCommand(opcode, params, numParams);
+
+  transmitStatus(status);
+}
 /* USER CODE END 0 */
 
 /**
@@ -97,7 +149,8 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+    TxProtocol();
+    HAL_Delay(500);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
