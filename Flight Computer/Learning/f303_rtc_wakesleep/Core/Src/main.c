@@ -52,6 +52,12 @@ RTC_TimeTypeDef stimestructureget;
 RTC_AlarmTypeDef sAlarmA;
 RTC_AlarmTypeDef sAlarmB;
 
+// flag to indicate alarmA interrupt occurred
+volatile uint8_t alarmAOccurred = 0;
+
+// uart2 buffer
+char msg[100];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,11 +104,79 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_RTC_Init();
+
   /* USER CODE BEGIN 2 */
+
   // reset LED
   HAL_GPIO_WritePin(LED_Output_GPIO_Port, LED_Output_Pin, RESET);
 
+  if (__HAL_PWR_GET_FLAG(PWR_FLAG_WU)) {
+	*msg = sprintf((char *)msg, "entered if: hal_pwr_get_flag\r\n");
+  	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+
+  	// -------------------------------------------------------------------
+  	// update alarm a so wake/sleep cycle repeats a few times for testing
+  	// -------------------------------------------------------------------
+  	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+  	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+
+  	sprintf((char *)msg, "GetTime/Date: %.2d:%.2d:%.2d\r\n", stimestructureget.Hours,
+  			stimestructureget.Minutes, stimestructureget.Seconds);
+	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+
+  	// need to call HAL_RTC_SetTime() before setting alarm
+  	if (HAL_RTC_SetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BCD) != HAL_OK)
+  	{
+  	    Error_Handler();
+	}
+
+  	// update alarm a values
+	sAlarmA.AlarmTime.Minutes = (uint8_t) (stimestructureget.Minutes + (stimestructureget.Seconds + 20) / 60);
+//	if (sAlarmA.AlarmTime.Minutes > 59) {
+//		sAlarmA.AlarmTime.Hours = (uint8_t) ((stimestructureget.Hours + 1) % 24);
+//		sAlarmA.AlarmTime.Minutes = (uint8_t) 0;
+//	}
+	sAlarmA.AlarmTime.Hours = 0x11;
+	sAlarmA.AlarmTime.Seconds = (uint8_t) ((stimestructureget.Seconds + 20) % 60);
+	sAlarmA.Alarm = RTC_ALARM_A;
+	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmA, RTC_FORMAT_BCD) != HAL_OK)
+	{
+	  Error_Handler();
+	}
+
+	// debug info
+	sprintf((char *)msg, "Alarm A values: %.2d:%.2d:%.2d\r\n", sAlarmA.AlarmTime.Hours,
+			sAlarmA.AlarmTime.Minutes, sAlarmA.AlarmTime.Seconds);
+	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+
+	// -------------------------------------------------------------------
+  	// update alarm b so wake/sleep cycle repeats a few times for testing
+	// -------------------------------------------------------------------
+	sAlarmB.AlarmTime.Minutes = (uint8_t) (sAlarmA.AlarmTime.Minutes + (sAlarmA.AlarmTime.Seconds + 20) / 60);
+	if (sAlarmB.AlarmTime.Minutes > 59) {
+		sAlarmB.AlarmTime.Hours = (uint8_t) ((sAlarmA.AlarmTime.Hours + 1) % 24);
+		sAlarmB.AlarmTime.Minutes = (uint8_t) 0;
+	}
+	sAlarmB.AlarmTime.Seconds = (uint8_t) ((sAlarmA.AlarmTime.Seconds + 20) % 60);
+	sAlarmB.Alarm = RTC_ALARM_A;
+	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmB, RTC_FORMAT_BCD) != HAL_OK)
+	{
+	  Error_Handler();
+	}
+
+	// debug info
+	sprintf((char *)msg, "Alarm B values: %.2d:%.2d:%.2d\r\n", sAlarmB.AlarmTime.Hours,
+			sAlarmB.AlarmTime.Minutes, sAlarmB.AlarmTime.Seconds);
+	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+
+	// -------------------------------------------------------------------
+	// -------------------------------------------------------------------
+
+  } else {
   /** Set the RTC Time and Date		 */
+	sprintf((char *)msg, "Setting RTC time and date in else statement\r\n");
+	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+
     stimestructureget.Hours = 0x11;
     stimestructureget.Minutes = 0x11;
     stimestructureget.Seconds = 0x00;
@@ -125,7 +199,7 @@ int main(void)
     /** Enable the Alarm A */
     sAlarmA.AlarmTime.Hours = 0x11;
     sAlarmA.AlarmTime.Minutes = 0x11;
-    sAlarmA.AlarmTime.Seconds = 0x30;
+    sAlarmA.AlarmTime.Seconds = 0x10;
     sAlarmA.AlarmTime.SubSeconds = 0x0;
     sAlarmA.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
     sAlarmA.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -136,12 +210,12 @@ int main(void)
     sAlarmA.Alarm = RTC_ALARM_A;
     if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmA, RTC_FORMAT_BCD) != HAL_OK)
     {
-  	Error_Handler();
+      Error_Handler();
     }
     /** Enable the Alarm B */
     sAlarmB.AlarmTime.Hours = 0x11;
     sAlarmB.AlarmTime.Minutes = 0x11;
-    sAlarmB.AlarmTime.Seconds = 0x45;
+    sAlarmB.AlarmTime.Seconds = 0x30;
     sAlarmB.AlarmTime.SubSeconds = 0x0;
     sAlarmB.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
     sAlarmB.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -160,25 +234,10 @@ int main(void)
     {
   	  Error_Handler();
     }
+  }
+  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU); // clear the wakeup flag
 
-
-
-
-
-
-//  HAL_RTC_SetAlarm_IT(&hrtc, sAlarm, Format);
-
-  // necessary functions (HAL manual p319 ish, section 33)
-//  HAL_PWR_EnterSTANDBYMode(); // use wfi = wait for interrupt. intention is to use rtc alarm to wake/sleep
-//  HAL_RTC_SetAlarm_IT();
-//  HAL_RTC_ReadAlarm();
-
-//  if (__HAL_PWR_GET_FLAG(PWR_FLAG_WU)) {
-//	  uint8_t msg = "woke from low power mode";
-//	  HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
-//  }
-
-//  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU); // clear the wakeup flag
+    // necessary functions (HAL manual p319 ish, section 33)
 
   /* USER CODE END 2 */
 
@@ -186,15 +245,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (alarmAOccurred) {
+		  sprintf((char *)msg, "entered alarmAOccurred in while loop\r\n");
+		  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+		  HAL_PWR_EnterSTANDBYMode();
+		  sprintf((char *)msg, "line right after enter standby mode\r\n");
+		  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+	  }
 	  // if this loop is entered, blink led really fast
 	  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 
 	  uint8_t tx_buffer[1000];
-	  sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds);
+	  sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\n\r\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds);
 	  HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *) tx_buffer), 1000);
 	  HAL_GPIO_TogglePin(LED_Output_GPIO_Port, LED_Output_Pin);
-	  HAL_Delay(100);
+	  HAL_Delay(250);
 
     /* USER CODE END WHILE */
 
@@ -282,60 +348,7 @@ static void MX_RTC_Init(void)
   /* USER CODE BEGIN Check_RTC_BKUP */
 
   /* USER CODE END Check_RTC_BKUP */
-#ifdef	NEVER_DEF
-  /** Initialize RTC and set the Time and Date
-  */
-  stimestructureget.Hours = 0x0;
-  stimestructureget.Minutes = 0x15;
-  stimestructureget.Seconds = 0x22;
-  stimestructureget.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  stimestructureget.StoreOperation = RTC_STOREOPERATION_RESET;
-  if (HAL_RTC_SetTime(&hrtc, &stimestructureget, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sdatestructureget.WeekDay = RTC_WEEKDAY_MONDAY;
-  sdatestructureget.Month = RTC_MONTH_APRIL;
-  sdatestructureget.Date = 0x12;
-  sdatestructureget.Year = 0x21;
 
-  if (HAL_RTC_SetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Enable the Alarm A
-  */
-  sAlarmA.AlarmTime.Hours = 0x0;
-  sAlarmA.AlarmTime.Minutes = 0x30;
-  sAlarmA.AlarmTime.Seconds = 0x0;
-  sAlarmA.AlarmTime.SubSeconds = 0x0;
-  sAlarmA.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
-  sAlarmA.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
-  sAlarmA.AlarmMask = RTC_ALARMMASK_NONE;
-  sAlarmA.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
-  sAlarmA.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-  sAlarmA.AlarmDateWeekDay = 0x1;
-  sAlarmA.Alarm = RTC_ALARM_A;
-  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmA, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Enable the Alarm B
-  */
-  sAlarmB.AlarmTime.Hours = 0x12;
-  sAlarmB.AlarmTime.Minutes = 0x0;
-  sAlarmB.Alarm = RTC_ALARM_B;
-  if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmB, RTC_FORMAT_BCD) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Enable the WakeUp
-  */
-  if (HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 0, RTC_WAKEUPCLOCK_RTCCLK_DIV16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-#endif
   /* USER CODE BEGIN RTC_Init 2 */
 
   /* USER CODE END RTC_Init 2 */
@@ -432,9 +445,13 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
+//  __disable_irq();
   while (1)
   {
+	  HAL_GPIO_WritePin(LED_Output_GPIO_Port, LED_Output_Pin, RESET);
+	  HAL_Delay(250);
+	  HAL_GPIO_WritePin(LED_Output_GPIO_Port, LED_Output_Pin, SET);
+	  HAL_Delay(1000);
   }
   /* USER CODE END Error_Handler_Debug */
 }
@@ -460,19 +477,21 @@ void assert_failed(uint8_t *file, uint32_t line)
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc) {
 	// transmit over UART2 to indicate callback happened
 	uint8_t msg[100];
-	sprintf((char *)msg, "Alarm A callback entered\n");
-	for (int i = 0; i < 5; i++)
-		HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
-	//HAL_Delay(1000); // wait one second
+	sprintf((char *)msg, "Alarm A callback entered\r\n");
+	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+
+//	HAL_PWR_EnterSTANDBYMode();
+	alarmAOccurred = 1;
+
 }
 
 void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
 	// transmit over UART2 to indicate callback happened
 	uint8_t msg[100];
-	sprintf((char *)msg, "Alarm B callback entered\n");
-	for (int i = 0; i < 5; i++)
-		HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
-	//HAL_Delay(1000); // wait one second
+	sprintf((char *)msg, "Alarm B callback entered\r\n");
+	HAL_UART_Transmit(&huart2, msg, strlen((char const *)msg), 1000);
+	alarmAOccurred = 0;
+
 }
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
