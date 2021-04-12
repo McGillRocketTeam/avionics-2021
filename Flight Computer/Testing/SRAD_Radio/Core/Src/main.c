@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "sx126x_hal.h"
+#include "sx126x.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
