@@ -164,6 +164,10 @@ uint32_t getAltitude();
 // SD initialization with new file and initial write
 FRESULT sd_init();
 
+// save data to sd card
+FRESULT sd_save(float pressure, float temperature, float accelx,
+		float magx, float latitude, float longitude, float gpsTime);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -376,9 +380,8 @@ int main(void)
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
 	GPS_Poll(&latitude, &longitude, &time);
-	// TODO: Add SD card
-	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
-
+	fres = sd_save(pressure, temperature, acceleration[0], angular_rate[0], latitude, longitude, time);
+	// TODO: can add handling if fres != FR_OK for sd_save
 #ifndef DEBUG_MODE
 	// Transmit via radio
 	// TODO: Replace with RnD radio
@@ -925,7 +928,7 @@ FRESULT sd_init() {
 	  }
 
 	  // write data headers (time, altitude, temp, etc.)
-	char sdHeader[] = "Hour,Minute,Second,Temperature(C),Pressure(hPA),Accelx,Magx,Long,Lat,Time(GPS)\n";
+	char sdHeader[] = "Hour,Minute,Second,Temperature(C),Pressure(hPA),Accelx,Magx,Longitude,Latitude,Time(GPS)\n";
 	UINT bytesWrote;
 	fres = f_write(&fil, sdHeader, strlen(sdHeader), &bytesWrote);
 	if(fres == FR_OK) {
@@ -945,6 +948,21 @@ FRESULT sd_init() {
 	return fres; // if this line is reached then fres = FR_OK
 }
 
+FRESULT sd_save(float pressure, float temperature, float accelx,
+		float magx, float latitude, float longitude, float gpsTime) {
+	sprintf((char *) tx_buffer, "%hu,%hu,%hu,%f,%f,%f,%f,%.3f,%.3f,%.3f\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, temperature, pressure, accelx, magx, longitude, latitude, time);
+	UINT bytesWrote;
+	fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
+	if (fres != FR_OK) {
+#ifdef DEBUG_MODE
+		printf((char *)msg, "SD data write failed, fres = %i, bytes written = %d\n\n", fres, bytesWrote);
+		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#else
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+#endif
+	}
+	return fres;
+}
 // Callbacks
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim == &htim2){
@@ -984,14 +1002,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 #endif
 			case 3:
 				// GPS
-#ifndef SIM_PRESSURE_SENSOR // maybe remove this?
+#ifndef SIM_PRESSURE_SENSOR // maybe remove this ifndef?
 				GPS_Poll(&latitude, &longitude, &time);
 #endif
 				currTask++;
 				break;
 			case 4:
 				// Save to SD card
-				// TODO: Add SD card function here
+				fres = sd_save(pressure, temperature, acceleration[0], angular_rate[0], latitude, longitude, time);
+				if (fres != FR_OK) {
+#ifdef DEBUG_MODE
+					printf((char *)msg, "SD data write failed, fres = %i\n\n", fres);
+					HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#else
+					HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+#endif
+				}
 				currTask++;
 				break;
 			default:
