@@ -1,8 +1,8 @@
-main.c:81:5:main	1016	static
-main.c:276:6:SystemClock_Config	160	static
-main.c:324:13:MX_RTC_Init	8	static
-main.c:363:13:MX_USART2_UART_Init	8	static
-main.c:398:13:MX_GPIO_Init	48	static
-main.c:444:6:Error_Handler	8	static
-main.c:477:6:HAL_RTC_AlarmAEventCallback	120	static
-main.c:488:6:HAL_RTCEx_AlarmBEventCallback	120	static
+main.c:81:5:main	16	static
+main.c:241:6:SystemClock_Config	160	static
+main.c:289:13:MX_RTC_Init	8	static
+main.c:329:13:MX_USART2_UART_Init	8	static
+main.c:364:13:MX_GPIO_Init	48	static
+main.c:410:6:Error_Handler	8	static
+main.c:443:6:HAL_RTC_AlarmAEventCallback	120	static
+main.c:461:6:HAL_RTCEx_AlarmBEventCallback	120	static
