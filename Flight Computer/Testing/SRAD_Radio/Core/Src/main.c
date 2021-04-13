@@ -115,24 +115,43 @@ void TxProtocol(){
 	numParams = 1;
 	HAL_StatusTypeDef status2 = writeCommand(opcode, params2, numParams);
 
-	// Set to Tx Mode
-	//opcode = 131; //0x83
-	//uint8_t params4[3] = {0,1,0};
-	//numParams = 3;
-	//writeCommand(opcode, params4, numParams);
-
 	//Get Packet Type test
-	opcode = 17;
-	uint8_t params3[2] = {0,0};
-	uint8_t buffer[2];
-	numParams = 2;
-	HAL_StatusTypeDef status3 = readCommand(opcode, params3, buffer, numParams);
+	//opcode = 17;
+	//uint8_t params3[2] = {0,0};
+	//uint8_t buffer[2];
+	//numParams = 2;
+	//HAL_StatusTypeDef status3 = readCommand(opcode, params3, buffer, numParams);
 
 	//3. Set Operating Frequency
-	//opcode = 134; //0x86
-	//params = {4,4,4,4};
-	//numParams = 4;
-	//HAL_StatusTypeDef status = writeCommand(opcode, params, numParams);
+	opcode = 134; //0x86
+	uint8_t params3[4] = {4,4,4,4};
+	numParams = 4;
+	HAL_StatusTypeDef status3 = writeCommand(opcode, params3, numParams);
+
+	//4. Set Power Amplifier Configuration
+	opcode = 149; //0x95
+	uint8_t params4[4] = {3,5,0,1}; //check PA operating modes with optimal settings
+	numParams = 4;
+	HAL_StatusTypeDef status4 = writeCommand(opcode, params4, numParams);
+
+	//5. Set Buffer Base Addresses
+	opcode = 143; //0x8F
+	uint8_t params5[2] = {0,0};
+	numParams = 2;
+	HAL_StatusTypeDef status4 = writeCommand(opcode, params5, numParams);
+
+	//6. Set Modulation and Packet Parameters
+	opcode = 143; //0x8F
+	uint8_t params5[2] = {0,0};
+	numParams = 2;
+	HAL_StatusTypeDef status4 = writeCommand(opcode, params5, numParams);
+
+	//9. Set to Tx Mode
+	opcode = 131; //0x83
+	uint8_t params9[3] = {0,1,0};
+	numParams = 3;
+	writeCommand(opcode, params9, numParams);
+
 
 	transmitBuffer("Status 1: ");
 	transmitStatus(status1);
@@ -140,10 +159,12 @@ void TxProtocol(){
 	transmitStatus(status2);
 	transmitBuffer("Status 3: ");
 	transmitStatus(status3);
-	transmitBuffer("Data: ");
-	char buffer_test[100];
-	sprintf(buffer_test, "Status: %u Packet Type: %u", buffer[0], buffer[1]);
-	transmitBuffer(&buffer_test[0]);
+	transmitBuffer("Status 4: ");
+		transmitStatus(status4);
+	//transmitBuffer("Data: ");
+	//char buffer_test[100];
+	//sprintf(buffer_test, "Status: %u Packet Type: %u", buffer[0], buffer[1]);
+	//transmitBuffer(&buffer_test[0]);
 	transmitBuffer("\n\n");
 
 }
