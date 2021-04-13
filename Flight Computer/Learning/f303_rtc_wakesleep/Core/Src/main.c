@@ -43,6 +43,8 @@
 /* Private variables ---------------------------------------------------------*/
 RTC_HandleTypeDef hrtc;
 
+TIM_HandleTypeDef htim16;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -65,7 +67,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_RTC_Init(void);
-extern void HAL_RTC_MspInit(RTC_HandleTypeDef* hrtc);
+static void MX_TIM16_Init(void);
 /* USER CODE BEGIN PFP */
 void pollAlarmInterruptFlag(void);
 /* USER CODE END PFP */
@@ -92,7 +94,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  HAL_PWR_DisableSleepOnExit();
+//  HAL_PWR_DisableSleepOnExit();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -106,9 +108,10 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_RTC_Init();
+  MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
 
-
+  HAL_TIM_Base_Start_IT(&htim16);
 	// reset LED
 	HAL_GPIO_WritePin(LED_Output_GPIO_Port, LED_Output_Pin, RESET);
 
@@ -119,7 +122,7 @@ int main(void)
 
 		// if we woke from standby, then alarm B triggered the wakeup so run the callback
 		HAL_RTCEx_AlarmBEventCallback(&hrtc);
-		sprintf((char *) msg, "inside flag clearing about beginning of main");
+		sprintf((char *) msg, "inside flag clearing about beginning of main\n");
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 	} else {
 
@@ -206,21 +209,21 @@ int main(void)
 	  }
 
 	  // print current RTC time for debugging
-	  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-	  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
-	  sprintf((char*) msg, "main, current: GetTime/Date: %.2d:%.2d:%.2d\r\n",
-				stimestructureget.Hours, stimestructureget.Minutes,
-				stimestructureget.Seconds);
-	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+//	  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+//	  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+//	  sprintf((char*) msg, "main, current: GetTime/Date: %.2d:%.2d:%.2d\r\n",
+//				stimestructureget.Hours, stimestructureget.Minutes,
+//				stimestructureget.Seconds);
+//	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
 	  // print status of alarm flags for debugging
-	  sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRBF));
-	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+//	  sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRBF));
+//	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
 	  // if this loop is entered, blink LED quickly and print time
-	  HAL_GPIO_TogglePin(LED_Output_GPIO_Port, LED_Output_Pin);
+//	  HAL_GPIO_TogglePin(LED_Output_GPIO_Port, LED_Output_Pin);
 
-	  HAL_Delay(100);
+//	  HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -267,9 +270,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_RTC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_RTC
+                              |RCC_PERIPHCLK_TIM16;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  PeriphClkInit.Tim16ClockSelection = RCC_TIM16CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -287,6 +292,10 @@ static void MX_RTC_Init(void)
   /* USER CODE BEGIN RTC_Init 0 */
 
   /* USER CODE END RTC_Init 0 */
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+  RTC_AlarmTypeDef sAlarm = {0};
 
   /* USER CODE BEGIN RTC_Init 1 */
 
@@ -309,10 +318,41 @@ static void MX_RTC_Init(void)
 
   /* USER CODE END Check_RTC_BKUP */
 
-
   /* USER CODE BEGIN RTC_Init 2 */
   HAL_RTC_MspInit(&hrtc);
   /* USER CODE END RTC_Init 2 */
+
+}
+
+/**
+  * @brief TIM16 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM16_Init(void)
+{
+
+  /* USER CODE BEGIN TIM16_Init 0 */
+
+  /* USER CODE END TIM16_Init 0 */
+
+  /* USER CODE BEGIN TIM16_Init 1 */
+
+  /* USER CODE END TIM16_Init 1 */
+  htim16.Instance = TIM16;
+  htim16.Init.Prescaler = 7200 - 1;
+  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim16.Init.Period = 10000 - 1;
+  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim16.Init.RepetitionCounter = 0;
+  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM16_Init 2 */
+
+  /* USER CODE END TIM16_Init 2 */
 
 }
 
@@ -397,20 +437,23 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 // Callbacks
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc) {
-	// clear the alarm flag
-	__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
-	while (__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF) != RESET)
-		__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRAF);
-	__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
-	__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
-
 	sprintf((char*) msg, "Alarm A callback entered\r\n");
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen((char const*) msg), 1000);
 	sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n",
 			__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF),
 			__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
 	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+	// clear the alarm flag
+		__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
+		while (__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF) != RESET)
+			__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRAF);
+		__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
+		__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
 
+		sprintf((char*) msg, "alarmA flag after clear: %d\talarmB flag: %d\r\n\n",
+					__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF),
+					__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
+			HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 	alarmAOccurred = 1;
 }
 
@@ -435,6 +478,30 @@ void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
 		  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 	alarmAOccurred = 0;
 
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == &htim16) {
+		sprintf((char*) msg, "TIM16 callback entered\r\n");
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen((char const*) msg),
+				1000);
+
+		HAL_GPIO_TogglePin(LED_Output_GPIO_Port, LED_Output_Pin);
+
+		// print current RTC time for debugging
+		HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+		HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+		sprintf((char*) msg, "main, current: GetTime/Date: %.2d:%.2d:%.2d\r\n",
+				stimestructureget.Hours, stimestructureget.Minutes,
+				stimestructureget.Seconds);
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+
+//		// print status of alarm flags for debugging
+		sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n",
+				__HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF),
+				__HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRBF));
+		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+	}
 }
 
 /*
