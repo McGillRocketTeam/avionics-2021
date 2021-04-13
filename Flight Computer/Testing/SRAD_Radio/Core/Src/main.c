@@ -84,7 +84,6 @@ void transmitBuffer(char buffer[]){
 
 HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams){
 	HAL_StatusTypeDef status;
-	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_SET);
 	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
 	status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
 	status = HAL_SPI_Transmit(&hspi1, (uint8_t*)params, numOfParams, 100);
