@@ -138,13 +138,28 @@ void TxProtocol(){
 	opcode = 143; //0x8F
 	uint8_t params5[2] = {0,0};
 	numParams = 2;
-	HAL_StatusTypeDef status4 = writeCommand(opcode, params5, numParams);
+	HAL_StatusTypeDef status5 = writeCommand(opcode, params5, numParams);
 
-	//6. Set Modulation and Packet Parameters
-	opcode = 143; //0x8F
-	uint8_t params5[2] = {0,0};
+	//6-1. Set Modulation Parameters
+	opcode = 139; //0x8B
+	uint8_t params6_1[8] = {8,0,1,0,0,0,0,0};
+	numParams = 8;
+	HAL_StatusTypeDef status6_1 = writeCommand(opcode, params6_1, numParams);
+
+	//6-2. Set Packet Parameters
+	opcode = 140; //0x8C
+	uint8_t params6_2[8] = {4,0,0,1,1,0,0,0};
+	numParams = 8;
+	HAL_StatusTypeDef status6_2 = writeCommand(opcode, params6_2, numParams);
+
+	//7. Write Data to Buffer
+	opcode = 14; //0x0E
+	uint8_t params7[2] = {0,4};
 	numParams = 2;
-	HAL_StatusTypeDef status4 = writeCommand(opcode, params5, numParams);
+	HAL_StatusTypeDef status7 = writeCommand(opcode, params7, numParams);
+
+	//8. Set IRQ Params
+	//skipped for now
 
 	//9. Set to Tx Mode
 	opcode = 131; //0x83
@@ -160,7 +175,7 @@ void TxProtocol(){
 	transmitBuffer("Status 3: ");
 	transmitStatus(status3);
 	transmitBuffer("Status 4: ");
-		transmitStatus(status4);
+	transmitStatus(status4);
 	//transmitBuffer("Data: ");
 	//char buffer_test[100];
 	//sprintf(buffer_test, "Status: %u Packet Type: %u", buffer[0], buffer[1]);
