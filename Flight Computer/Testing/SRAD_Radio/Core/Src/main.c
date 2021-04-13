@@ -84,34 +84,67 @@ void transmitBuffer(char buffer[]){
 
 HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams){
 	HAL_StatusTypeDef status;
-	if(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_RESET){
-		HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
-		status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
-		status = HAL_SPI_Transmit(&hspi1, (uint8_t*)params, numOfParams, 100);
-		HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
-	}
+	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
+	status = HAL_SPI_Transmit(&hspi1, (uint8_t*)params, numOfParams, 100);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
 	return status;
 }
 
-HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t buffer[], uint16_t numOfParams){
+HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t params[], uint8_t response[], uint16_t numOfParams){
 	HAL_StatusTypeDef status;
-	if(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_RESET){
-		HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
-		status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
-		status = HAL_SPI_Receive(&hspi1, (uint8_t*)buffer, numOfParams, 100);
-		HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
-	}
+	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
+	status = HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)params, (uint8_t*)response, numOfParams, 100);
+	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
 	return status;
 }
 
 void TxProtocol(){
-	//1. Set to standby mode
+	//1. Set to Standby Mode
 	uint8_t opcode = 128; //0x80
-	uint8_t params[1] = {0};
+	uint8_t params1[1] = {0};
 	uint16_t numParams = 1;
-	HAL_StatusTypeDef status = writeCommand(opcode, params, numParams);
+	HAL_StatusTypeDef status1 = writeCommand(opcode, params1, numParams);
 
-	transmitStatus(status);
+	//2. Set Packet Type
+	opcode = 138; //0x8A
+	uint8_t params2[1] = {1};
+	numParams = 1;
+	HAL_StatusTypeDef status2 = writeCommand(opcode, params2, numParams);
+
+	// Set to Tx Mode
+	//opcode = 131; //0x83
+	//uint8_t params4[3] = {0,1,0};
+	//numParams = 3;
+	//writeCommand(opcode, params4, numParams);
+
+	//Get Packet Type test
+	opcode = 17;
+	uint8_t params3[2] = {0,0};
+	uint8_t buffer[2];
+	numParams = 2;
+	HAL_StatusTypeDef status3 = readCommand(opcode, params3, buffer, numParams);
+
+	//3. Set Operating Frequency
+	//opcode = 134; //0x86
+	//params = {4,4,4,4};
+	//numParams = 4;
+	//HAL_StatusTypeDef status = writeCommand(opcode, params, numParams);
+
+	transmitBuffer("Status 1: ");
+	transmitStatus(status1);
+	transmitBuffer("Status 2: ");
+	transmitStatus(status2);
+	transmitBuffer("Status 3: ");
+	transmitStatus(status3);
+	transmitBuffer("Data: ");
+	char buffer_test[100];
+	sprintf(buffer_test, "Status: %u Packet Type: %u", buffer[0], buffer[1]);
+	transmitBuffer(&buffer_test[0]);
+	transmitBuffer("\n\n");
 
 }
 /* USER CODE END 0 */
@@ -154,6 +187,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	TxProtocol();
+	HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
