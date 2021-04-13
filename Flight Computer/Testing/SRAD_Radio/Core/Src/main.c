@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "sx126x_hal.h"
+#include "sx126x.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -154,8 +155,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	TxProtocol();
-	HAL_Delay(500);
 
     /* USER CODE BEGIN 3 */
   }
