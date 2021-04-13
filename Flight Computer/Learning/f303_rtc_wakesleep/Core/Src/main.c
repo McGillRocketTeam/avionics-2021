@@ -111,28 +111,18 @@ int main(void)
 
 	// reset LED
 	HAL_GPIO_WritePin(LED_Output_GPIO_Port, LED_Output_Pin, RESET);
+
+	// check if system woke from standby mode, if so, clear flags
 	if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) != RESET) {
-		/* Clear Standby flag */
 		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
 		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-//		__HAL_RTC_ALARM_CLEAR_FLAG(&hrtc, RTC_FLAG_ALRAF);
-//		__HAL_RTC_ALARM_CLEAR_FLAG(&hrtc, RTC_FLAG_ALRBF);
-		// Check and Clear the Wakeup flag
-//		if (__HAL_PWR_GET_FLAG(PWR_FLAG_WU) != RESET) {
-//			__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-//		}
+
+		// if we woke from standby, then alarm B triggered the wakeup so run the callback
 		HAL_RTCEx_AlarmBEventCallback(&hrtc);
 		sprintf((char *) msg, "inside flag clearing about beginning of main");
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 	} else {
 
-		/** Set the RTC Time and Date */
-//		HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-//		HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
-//		sprintf((char*) msg, "else of main: GetTime/Date: %.2d:%.2d:%.2d\r\n",
-//				stimestructureget.Hours, stimestructureget.Minutes,
-//				stimestructureget.Seconds);
-//		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
 		sprintf((char*) msg, "Setting RTC time and date\r\n");
 		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
@@ -166,12 +156,12 @@ int main(void)
 		/** Enable the Alarm A */
 		sAlarmA.AlarmTime.Hours = 0x11;
 		sAlarmA.AlarmTime.Minutes = 0x55;
-		sAlarmA.AlarmTime.Seconds = 0x05;
+		sAlarmA.AlarmTime.Seconds = 0x03;
 		sAlarmA.AlarmTime.SubSeconds = 0x0;
 		sAlarmA.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 		sAlarmA.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
-		sAlarmA.AlarmMask = RTC_ALARMMASK_DATEWEEKDAY | RTC_ALARMMASK_HOURS | RTC_ALARMMASK_MINUTES;
-//		sAlarmA.AlarmMask = RTC_ALARMMASK_ALL;
+		sAlarmA.AlarmMask = RTC_ALARMMASK_DATEWEEKDAY | RTC_ALARMMASK_HOURS | RTC_ALARMMASK_MINUTES; // triggers alarm every minute at the specified second
+//		sAlarmA.AlarmMask = RTC_ALARMMASK_ALL; // triggers alarm every second
 		sAlarmA.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_NONE;
 		sAlarmA.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
 		sAlarmA.AlarmDateWeekDay = 0x1;
@@ -182,12 +172,12 @@ int main(void)
 		/** Enable the Alarm B */
 		sAlarmB.AlarmTime.Hours = 0x11;
 		sAlarmB.AlarmTime.Minutes = 0x42;
-		sAlarmB.AlarmTime.Seconds = 0x15;
+		sAlarmB.AlarmTime.Seconds = 0x12;
 		sAlarmB.AlarmTime.SubSeconds = 0x0;
 		sAlarmB.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 		sAlarmB.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
-		sAlarmB.AlarmMask = RTC_ALARMMASK_DATEWEEKDAY | RTC_ALARMMASK_HOURS | RTC_ALARMMASK_MINUTES;
-//		sAlarmB.AlarmMask = RTC_ALARMMASK_ALL;
+		sAlarmB.AlarmMask = RTC_ALARMMASK_DATEWEEKDAY | RTC_ALARMMASK_HOURS | RTC_ALARMMASK_MINUTES; // triggers alarm every minute at the specified second
+//		sAlarmB.AlarmMask = RTC_ALARMMASK_ALL; // triggers alarm every second
 		sAlarmB.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_NONE;
 		sAlarmB.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
 		sAlarmB.AlarmDateWeekDay = 0x1;
@@ -197,8 +187,6 @@ int main(void)
 		}
 	}
 
-    // necessary functions (HAL manual p319 ish, section 33)
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -206,50 +194,33 @@ int main(void)
   while (1)
   {
 	  pollAlarmInterruptFlag();
+
+	  // alarmAOccurred is a flag indicating time to sleep
 	  if (alarmAOccurred) {
 		  sprintf((char *)msg, "entered alarmAOccurred in while loop, going to sleep\r\n");
 		  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
 
-//		  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB); // not necessary to clear this flag
 		  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
 		  HAL_SuspendTick(); // systick generates interrupts which may wake the processor
 		  HAL_PWR_EnterSTANDBYMode();
 	  }
 
-	  //	  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
-	  //	  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-
-	  //	  uint8_t tx_buffer[1000];
-	  //	  sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\n\r\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds);
-	  //	  HAL_UART_Transmit(&huart2, tx_buffer, strlen((char const *) tx_buffer), 1000);
-
-	  // if this loop is entered, blink led really fast
+	  // print current RTC time for debugging
 	  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 	  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	  sprintf((char*) msg, "main, current: GetTime/Date: %.2d:%.2d:%.2d\r\n",
 				stimestructureget.Hours, stimestructureget.Minutes,
 				stimestructureget.Seconds);
 	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+
+	  // print status of alarm flags for debugging
 	  sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRBF));
 	  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+
+	  // if this loop is entered, blink LED quickly and print time
 	  HAL_GPIO_TogglePin(LED_Output_GPIO_Port, LED_Output_Pin);
 
-//	  __HAL_RTC_WRITEPROTECTION_DISABLE(&hrtc);
-//		while (__HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF) != RESET)
-//			__HAL_RTC_ALARM_CLEAR_FLAG(&hrtc, RTC_FLAG_ALRAF);
-//			__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
-//		__HAL_RTC_WRITEPROTECTION_ENABLE(&hrtc);
-//		__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
-//
-//		__HAL_RTC_WRITEPROTECTION_DISABLE(&hrtc);
-//			while (__HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRBF) != RESET)
-//				__HAL_RTC_ALARM_CLEAR_FLAG(&hrtc, RTC_FLAG_ALRBF);
-//				__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
-//			__HAL_RTC_WRITEPROTECTION_ENABLE(&hrtc);
-//			__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
-
-
-	HAL_Delay(100);
+	  HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -426,49 +397,25 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 // Callbacks
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc) {
-	// transmit over UART2 to indicate callback happened
-//	__HAL_LOCK(hrtc);
-//	hrtc->State = HAL_RTC_STATE_BUSY;
-//	__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
-//	__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRAF);
-//	__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
-//	  hrtc->State = HAL_RTC_STATE_READY;
-//	__HAL_UNLOCK(hrtc);
-
+	// clear the alarm flag
 	__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
 	while (__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF) != RESET)
 		__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRAF);
-		__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
 	__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
 	__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
 
-	sprintf((char *)msg, "Alarm A callback entered\r\n");
-	HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen((char const *)msg), 1000);
-	sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
-		  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
+	sprintf((char*) msg, "Alarm A callback entered\r\n");
+	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen((char const*) msg), 1000);
+	sprintf((char*) msg, "alarmA flag: %d\talarmB flag: %d\r\n\n",
+			__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF),
+			__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
+	HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
 	alarmAOccurred = 1;
-	/* Check and handle if the system was resumed from StandBy mode */
-
-//			if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) != RESET) {
-//				/* Clear Standby flag */
-//				__HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
-//				// Check and Clear the Wakeup flag
-//				if (__HAL_PWR_GET_FLAG(PWR_FLAG_WU) != RESET) {
-//					__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-//				}
-//			}
 }
 
 void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
-	// transmit over UART2 to indicate callback happened
-//	__HAL_LOCK(hrtc);
-//	hrtc->State = HAL_RTC_STATE_BUSY;
-//	__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
-//	__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRBF);
-//	__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
-//	  hrtc->State = HAL_RTC_STATE_READY;
-//	__HAL_UNLOCK(hrtc);
+
 	sprintf((char *)msg, "Alarm B callback entered\r\n");
 		HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen((char const *)msg), 1000);
 
@@ -476,6 +423,7 @@ void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
 		sprintf((char*) msg, "before clear attempt: alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
 			  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
+	// clear the alarm flag
 	__HAL_RTC_WRITEPROTECTION_DISABLE(hrtc);
 	while (__HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF) != RESET)
 		__HAL_RTC_ALARM_CLEAR_FLAG(hrtc, RTC_FLAG_ALRBF);
@@ -483,24 +431,15 @@ void HAL_RTCEx_AlarmBEventCallback(RTC_HandleTypeDef *hrtc) {
 	__HAL_RTC_WRITEPROTECTION_ENABLE(hrtc);
 	__HAL_RTC_ALARM_EXTI_CLEAR_FLAG();
 
-
 	sprintf((char*) msg, "after clear attempt: alarmA flag: %d\talarmB flag: %d\r\n\n", __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRAF), __HAL_RTC_ALARM_GET_FLAG(hrtc, RTC_FLAG_ALRBF));
 		  HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 	alarmAOccurred = 0;
 
-	/* Check and handle if the system was resumed from StandBy mode */
-
-		if (__HAL_PWR_GET_FLAG(PWR_FLAG_SB) != RESET) {
-			/* Clear Standby flag */
-			__HAL_PWR_CLEAR_FLAG(PWR_FLAG_SB);
-			// Check and Clear the Wakeup flag
-			if (__HAL_PWR_GET_FLAG(PWR_FLAG_WU) != RESET) {
-				__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-			}
-		}
 }
 
-
+/*
+ * polls the alarm interrupt flags and calls the appropriate callback functions.
+ */
 void pollAlarmInterruptFlag(void) {
 	if (__HAL_RTC_ALARM_GET_FLAG(&hrtc, RTC_FLAG_ALRAF) != RESET)
 		HAL_RTC_AlarmAEventCallback(&hrtc);
