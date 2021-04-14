@@ -34,6 +34,7 @@ Adafruit_BNO055 bno;
 RTC_PCF8523 rtc;
 SFE_UBLOX_GPS myGPS;
 File myFile;
+DateTime now;
 
 uint32_t freqeuncy = 448000000; // 448 MHz
 uint16_t preamble_length = 12;
@@ -48,8 +49,7 @@ uint8_t *send_data;
 
 float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
 int latitude, longitude;
-String str, header, dateTime;
-String test_string;
+
 imu::Vector<3> accel_euler;
 imu::Vector<3> euler;
 int seaLevelhPa = 102540;
@@ -105,36 +105,10 @@ void setup() {
   myFile = SD.open("example.txt", FILE_WRITE);
   myFile.close();
 
-  header = "";
-  header += "Temperature";
-  header += ";";
-  header += "Pressure";
-  header += ";";
-  header += "Altitude(BMP,m)";
-  header += ";";
-  header += "Pitch";
-  header += ";";
-  header += "Roll";
-  header += ";";
-  header += "Yaw";
-  header += ";";
-  header += "AccelX";
-  header += ";";
-  header += "AccelY";
-  header += ";";
-  header += "AccelZ";
-  header += ";";
-  header += "Latitude";
-  header += ";";
-  header += "Longitude";
-  header += ";";
-  header += "Time";
-  header += "\n";
-  
+  char header[] = "Temperature;Pressure;Altitude(BMP,m);Pitch;Roll;Yaw;AccelX;AccelY;AccelZ;Latitude;Longitude;Time";
   myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.print(header);
+  myFile.println(header);
   myFile.close();
-  
 
   if (! rtc.initialized()) {
     Serial.println("RTC is NOT running!");
@@ -300,17 +274,6 @@ void sx1262_setup() {
   }
 }
 
-String getDateTime(){
-  dateTime = "";
-  DateTime now = rtc.now();
-  dateTime += String(now.hour(), DEC);
-  dateTime += ":";
-  dateTime += String(now.minute(), DEC);
-  dateTime += ":";
-  dateTime += String(now.second(), DEC);
-  return dateTime;
-}
-
 void loop() {
   accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
   accel_x = accel_euler.x();
@@ -341,59 +304,18 @@ void loop() {
 //     return;
 //  }
   
-  str = "";
-  
-//  str += "Temp:";
-  str += temp;
-  str += ";";
-//  str += "Pressure:";
-  str += pressure;
-  str += ";";
-//  str += "Altitude(BMP,m):";
-  str += real_altitude;
-  str += ";";
-//  str += "Pitch:";
-  str += pitch;
-  str += ";";
-//  str += "Roll:";
-  str += roll;
-  str += ";";
-//  str += "Yaw:";
-  str += yaw;
-  str += ";";
-  str += accel_x;
-  str += ";";
-  str += accel_y;
-  str += ";";
-  str += accel_z;
-  str += ";";
-//  str += "Latitude:";
-  str += latitude;
-  str += ";";
-//  str += "Longitude:";
-  str += longitude;
-  str += ";";
-//  str += "Time:";
-  str += getDateTime();
-//  str += ";";
-//  str += "IMEI is ";
-//  str += IMEI;
-  str += "\n";
-  Serial.println(str);
-  Serial.println();
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.print(str);
-  myFile.close();
+  now = rtc.now();
 
-  delay(100);
-  // ------------- Simple TX -----------------------------
-
-  data_length = snprintf(init_buffer, sizeof(init_buffer), "%f;%f;%f;%f;%f;%f;%f;%d;%d", real_altitude,pitch,roll,yaw,accel_x,accel_y,accel_z,latitude,longitude);
-  
+  data_length = snprintf(init_buffer, sizeof(init_buffer), "%f;%f;%f;%f;%f;%f;%f;%d;%d;%d:%d:%d", real_altitude,pitch,roll,yaw,accel_x,accel_y,accel_z,
+                                                                                            latitude,longitude,now.hour(),now.minute(),now.second());
   data_length++;
   data_length++;
   Serial.println("Data Length");
   Serial.println(data_length);
+  
+  myFile = SD.open("example.txt", FILE_WRITE);
+  myFile.println(init_buffer);
+  myFile.close();
 
   send_data = (uint8_t*)malloc(data_length);
   memcpy(send_data, init_buffer, data_length);
