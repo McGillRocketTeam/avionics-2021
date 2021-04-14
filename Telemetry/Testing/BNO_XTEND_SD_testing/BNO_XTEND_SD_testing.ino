@@ -5,13 +5,16 @@
 Adafruit_BNO055 bno;
 File myFile;
 
+#define xtendSerial Serial2
+
 float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
 int seaLevelhPa = 102540;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   Serial.println(F("All sensor test"));
+  xtendSerial.begin(9600);
 
   pinMode(10, OUTPUT);
   if(!SD.begin(10)){
@@ -67,6 +70,8 @@ void loop() {
   myFile = SD.open("example.txt", FILE_WRITE);
   myFile.print(str);
   myFile.close();
+
+  xtendSerial.println(str);
 
   Serial.println(F("All sensor test"));
   

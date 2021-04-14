@@ -87,10 +87,8 @@ void loop() {
   
     //======= NEO =========================================================================
     long latitude = myGPS.getLatitude();
-    latitude /= pow(10,7);
   
     long longitude = myGPS.getLongitude();
-    longitude /= pow(10,7);
   
     long gpsAltitude = myGPS.getAltitude();
     gpsAltitude /= pow(10,3);
@@ -121,7 +119,7 @@ void readReceived() {
   //Reading received byte
   if (xtendSerial.available()) {
     incomingByte = xtendSerial.read();      // will not be -1
-    Serial.println("We received data!\n");
+    Serial.println("We received data! - \n" + incomingByte);
   }
 }
 
