@@ -80,6 +80,9 @@ void Error_Handler(void);
 #define Relay_Main_1_GPIO_Port GPIOC
 #define Relay_Main_2_Pin GPIO_PIN_5
 #define Relay_Main_2_GPIO_Port GPIOC
+#define SD_CS_Pin GPIO_PIN_12
+#define SD_CS_GPIO_Port GPIOB
+#define SD_SPI_HANDLE hspi2
 #define LED3_Pin GPIO_PIN_6
 #define LED3_GPIO_Port GPIOC
 #define LED2_Pin GPIO_PIN_7

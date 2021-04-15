@@ -16,12 +16,11 @@
 sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, const uint16_t command_length,
                                       const uint8_t* data, const uint16_t data_length ){
 	HAL_StatusTypeDef status;
-		if(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_RESET){
+	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_SET);
 			HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
 			status = HAL_SPI_Transmit(hspi, command, command_length, 100);
 			status = HAL_SPI_Transmit(hspi, data, data_length, 100);
 			HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
-		}
 		return status;
 }
 
@@ -41,12 +40,11 @@ sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, 
 sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, const uint16_t command_lenght,
                                      uint8_t* data, const uint16_t data_length ){
 	HAL_StatusTypeDef status;
-		if(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_RESET){
+	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_SET);
 			HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
 			status = HAL_SPI_Transmit(hspi, command, command_lenght, 100);
 			status = HAL_SPI_Receive(hspi, data, data_length, 100);
 			HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
-		}
 		return status;
 }
 
