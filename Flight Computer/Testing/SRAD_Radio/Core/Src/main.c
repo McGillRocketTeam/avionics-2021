@@ -114,6 +114,18 @@ HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t params[], uint8_t response
 
 void TxProtocol(){
 
+	uint8_t command1[2] = {138,0};
+	uint8_t data1[2] = {0,0};
+	sx126x_hal_write(&hspi1, command1, 2, data1, 2);
+
+	sx126x_pkt_type_t type;
+	sx126x_get_pkt_type(&hspi1, &type);
+
+	//uint8_t command2[3] = {17,0,0};
+	//uint8_t data2[2] = {0,0};
+	//sx126x_hal_read(&hspi1, command2, 3, data2, 2);
+
+	/*
 	//set to standby
 	sx126x_set_standby(&hspi1, 0);
 
@@ -174,7 +186,7 @@ void TxProtocol(){
 	//clear irq status
 	sx126x_irq_mask_t irq = SX126X_IRQ_TX_DONE  ;
 	sx126x_get_and_clear_irq_status(&hspi1, &irq);
-
+	 */
 
 	//1. Set to Standby Mode
 	//uint8_t opcode = 128; //0x80
@@ -278,8 +290,9 @@ void TxProtocol(){
 	//uint8_t params_get_3[2] = {1,0};
 	//writeCommand(opcode, params_get_3, 2);
 
-	transmitBuffer("IRQ Status: ");
-	transmitIRQ(irq);
+	char buffer[100];
+	sprintf(buffer, "Packet Type: %u\n", type);
+	transmitBuffer(buffer);
 	transmitBuffer("\n\n");
 
 }
