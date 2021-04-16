@@ -667,12 +667,12 @@ sx126x_status_t sx126x_get_pkt_type( const void* context, sx126x_pkt_type_t* pkt
 {
     uint8_t         buf[SX126X_SIZE_GET_PKT_TYPE] = { 0 };
     sx126x_status_t status                        = SX126X_STATUS_ERROR;
-    uint8_t         pkt_type_raw;
+    uint8_t         pkt_type_raw[2];
 
     buf[0] = SX126X_GET_PKT_TYPE;
 
-    status    = ( sx126x_status_t ) sx126x_hal_read( context, buf, SX126X_SIZE_GET_PKT_TYPE, &pkt_type_raw, 1 );
-    *pkt_type = ( sx126x_pkt_type_t ) pkt_type_raw;
+    status    = ( sx126x_status_t ) sx126x_hal_read( context, buf, SX126X_SIZE_GET_PKT_TYPE, pkt_type_raw, 1 );
+    *pkt_type = ( sx126x_pkt_type_t ) pkt_type_raw[1];
 
     return status;
 }
