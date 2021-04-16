@@ -157,9 +157,8 @@ uint32_t getAltitude();
 // SD initialization with new file and initial write
 FRESULT sd_init();
 
-// save data to sd card
-FRESULT sd_save(float pressure, float temperature, float accelx,
-		float magx, float latitude, float longitude, float gpsTime);
+// Save data to sd card
+FRESULT sd_save();
 
 /* USER CODE END PFP */
 
@@ -226,8 +225,11 @@ int main(void)
   get_angvelocity(dev_ctx_lsm, angular_rate);
   GPS_Poll(&latitude, &longitude, &time);
 
+  // Initialize SD card and open file to begin writing
+  fres = sd_init();
+
 #ifdef DEBUG_MODE
-      sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS ----------\n");
+      sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS AND SD CARD ----------\n");
       HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #endif
@@ -243,16 +245,10 @@ int main(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
 
-  // initialize SD card and open file to begin writing
-  fres = sd_init();
-  if (fres != FR_OK) {
-	  // TODO: do some error handling, @jennie idk how you want to do this
-  }
 
   // ---------- START OF EJECTION CODE ----------
   uint32_t altitude = 0;
   uint32_t alt_filtered = 0;
-//  uint32_t currTick;
 
   // ---------- Get ground-level pressure and set as bias ----------
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -285,6 +281,9 @@ int main(void)
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- LAUNCHED ----------\n");
   HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+#else
+  // Turning off buzzer in flight mode bc launched and no one gives a shit
+  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
 
   while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE) // while moving up and hasn't reached threshold altitude yet
@@ -347,10 +346,13 @@ int main(void)
 	get_acceleration(dev_ctx_lsm, acceleration);
 	get_angvelocity(dev_ctx_lsm, angular_rate);
 	GPS_Poll(&latitude, &longitude, &time);
-	// save to SD
-	fres = sd_save(pressure, temperature, acceleration[0], angular_rate[0], latitude, longitude, time);
-	// TODO: can add handling if fres != FR_OK for sd_save
-	sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
+
+	// Format:
+	//	S,ACCx,ACCy,ACCz,MAGx,MAGy,MAGz,PRESSURE,LAT,LONG,HOUR,MIN,SEC,SUBSEC,E\n
+	//	S,3.2, 3.2, 3.2, 3.2, 3.2, 3.2, 4.2,    ,3.7,3.7, 2,   2,  2,  2,     E
+	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
+			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+
 #ifndef DEBUG_MODE
 	// Transmit via radio
 	// TODO: Replace with RnD radio
@@ -358,6 +360,8 @@ int main(void)
 #else
 	HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
+
+	fres = sd_save();
 
 	HAL_Delay(transmit_delay_time);
     /* USER CODE END WHILE */
@@ -854,6 +858,8 @@ uint32_t getAltitude(){
 	return altitude;
 }
 
+
+// TODO: Move this to sd_card.c
 /*
  * performs initialization for sd card.
  * mounts the sd card, creates new file for data logging, and
@@ -873,18 +879,27 @@ FRESULT sd_init(void) {
 		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-		return fres;
+
+		__BKPT();
+		// TODO: do some error handling, @jennie idk how you want to do this
+		while(1);
+
+//		return fres;
     }
 
 	// get current date and time to create new file for data logging
 	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 
-    char filename[35];
-	sprintf(filename, "datalog_%hu%hu%hu_%hu%hu%hu.txt",
-			(uint16_t) sdatestructureget.Year,  (uint16_t) sdatestructureget.Month, (uint16_t) sdatestructureget.Date,
-	  	    (uint16_t) stimestructureget.Hours, (uint16_t) stimestructureget.Minutes, (uint16_t) stimestructureget.Seconds);
-	fres = f_open(&fil, filename, FA_WRITE | FA_OPEN_ALWAYS);
+	// TODO: Get this to work
+//    char filename[28];
+//    memset(filename, 0, sizeof(filename));
+//	sprintf(filename, "datalog_%04hu%02hu%02hu_%02hu%02hu%02hu.txt",
+//			(uint16_t) sdatestructureget.Year,  (uint16_t) sdatestructureget.Month, (uint16_t) sdatestructureget.Date,
+//	  	    (uint16_t) stimestructureget.Hours, (uint16_t) stimestructureget.Minutes, (uint16_t) stimestructureget.Seconds);
+//	fres = f_open(&fil, filename, FA_WRITE | FA_CREATE_ALWAYS);
+	fres = f_open(&fil, "write2.txt", FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
+
 
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
@@ -895,10 +910,12 @@ FRESULT sd_init(void) {
 	    return fres;
 	  }
 
-	  // write data headers (time, altitude, temp, etc.)
-	char sdHeader[] = "Hour,Minute,Second,Temperature(C),Pressure(hPA),Accelx,Magx,Longitude,Latitude,Time(GPS)\n";
+	// write data headers (time, altitude, temp, etc.)
+	char sdHeader[] = "S,ACCx,ACCy,ACCz,MAGx,MAGy,MAGz,PRESSURE,LAT,LONG,HOUR,MIN,SEC,E\n";
 	UINT bytesWrote;
 	fres = f_write(&fil, sdHeader, strlen(sdHeader), &bytesWrote);
+	f_sync(&fil);
+
 	if(fres == FR_OK) {
 #ifdef DEBUG_MODE
 		printf((char *)msg, "SD header write successful, fres = %i\n\n", fres);
@@ -916,18 +933,18 @@ FRESULT sd_init(void) {
 	return fres; // if this line is reached then fres = FR_OK
 }
 
-FRESULT sd_save(float pressure, float temperature, float accelx,
-		float magx, float latitude, float longitude, float gpsTime) {
-	sprintf((char *) tx_buffer, "%hu,%hu,%hu,%f,%f,%f,%f,%.3f,%.3f,%.3f\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, temperature, pressure, accelx, magx, longitude, latitude, time);
+
+FRESULT sd_save() {
+
 	UINT bytesWrote;
 	fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
+	f_sync(&fil);
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
 		printf((char *)msg, "SD data write failed, fres = %i, bytes written = %d\n\n", fres, bytesWrote);
 		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
-#else
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 #endif
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 	}
 	return fres;
 }
@@ -963,21 +980,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				currTask++;
 				break;
 			case 4:
+				// Format string
+				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,E\n",
+							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+				currTask++;
+				break;
+			case 5:
 				// Save to SD card
-				fres = sd_save(pressure, temperature, acceleration[0], angular_rate[0], latitude, longitude, time);
-				if (fres != FR_OK) {
-#ifdef DEBUG_MODE
-					printf((char *)msg, "SD data write failed, fres = %i\n\n", fres);
-					HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
-#else
-					HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET); // but when would this LED get reset?
-#endif
-				}
+				fres = sd_save();
 				currTask++;
 				break;
 			default:
 				// Transmit to radio
-				sprintf((char *)tx_buffer, "TIME -- Hour:%hu\t\t Minute:%hu\t Second:%hu\nDATA -- Temperature:%hu\tPressure:%hu\tAccelx:%hu\tMagx:%hu\nGPS  -- Longitude:%.3f\tLatitude:%.3f\tTime:%.3f\n\n", (uint16_t)stimestructureget.Hours, (uint16_t)stimestructureget.Minutes, (uint16_t)stimestructureget.Seconds, (uint16_t)temperature, (uint16_t)pressure, (uint16_t)acceleration[0], (uint16_t)angular_rate[0], longitude, latitude, time);
 #ifndef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer ), 1000);
 #else
