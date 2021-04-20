@@ -13,15 +13,29 @@
  *
  * @returns Operation status
  */
+
+
 sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, const uint16_t command_length,
                                       const uint8_t* data, const uint16_t data_length ){
 	HAL_StatusTypeDef status;
-	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port,BUSY_Pin) == GPIO_PIN_SET);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	while(HAL_GPIO_ReadPin(BUSY_1_GPIO_Port,BUSY_1_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_RESET);
 	status = HAL_SPI_Transmit(hspi, command, command_length, 100);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_SET);
 	return status;
 }
+
+/*
+sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, const uint16_t command_length,
+                                      const uint8_t* data, const uint16_t data_length ){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_2_GPIO_Port,BUSY_2_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(hspi, command, command_length, 100);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_SET);
+	return status;
+}
+*/
 
 /**
  * Radio data transfer - read
@@ -36,16 +50,31 @@ sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, 
  *
  * @returns Operation status
  */
+
+
 sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, const uint16_t command_lenght,
                                      uint8_t* data, const uint16_t data_length ){
 	HAL_StatusTypeDef status;
-	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_SET);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	while(HAL_GPIO_ReadPin(BUSY_1_GPIO_Port, BUSY_1_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_RESET);
 	status = HAL_SPI_Transmit(hspi, command, 1, 100);
 	status = HAL_SPI_TransmitReceive(hspi, command+sizeof(uint8_t), data, command_lenght-1, 100);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_SET);
 	return status;
 }
+
+/*
+sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, const uint16_t command_lenght,
+                                     uint8_t* data, const uint16_t data_length ){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_2_GPIO_Port, BUSY_2_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(hspi, command, 1, 100);
+	status = HAL_SPI_TransmitReceive(hspi, command+sizeof(uint8_t), data, command_lenght-1, 100);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_SET);
+	return status;
+}
+*/
 
 /**
  * Reset the radio
@@ -58,10 +87,10 @@ sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, c
  */
 sx126x_hal_status_t sx126x_hal_reset( const void* hspi ){
 
-	if(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_RESET){
-		HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_RESET);
+	if(HAL_GPIO_ReadPin(BUSY_2_GPIO_Port, BUSY_2_Pin) == GPIO_PIN_RESET){
+		HAL_GPIO_WritePin(NRESET_2_GPIO_Port, NRESET_2_Pin, GPIO_PIN_RESET);
 		HAL_Delay(5);
-		HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(NRESET_2_GPIO_Port, NRESET_2_Pin, GPIO_PIN_SET);
 	}
 }
 
@@ -75,9 +104,9 @@ sx126x_hal_status_t sx126x_hal_reset( const void* hspi ){
  * @returns Operation status
  */
 sx126x_hal_status_t sx126x_hal_wakeup( const void* hspi ){
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_SET);
 	HAL_Delay(1);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(NSS_2_GPIO_Port, NSS_2_Pin, GPIO_PIN_RESET);
 }
 

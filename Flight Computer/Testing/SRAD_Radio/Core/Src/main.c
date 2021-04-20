@@ -44,6 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
+SPI_HandleTypeDef hspi2;
 
 UART_HandleTypeDef huart3;
 
@@ -56,6 +57,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -95,88 +97,127 @@ void transmitIRQ(sx126x_irq_mask_t irq){
 
 HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams){
 	HAL_StatusTypeDef status;
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	while(HAL_GPIO_ReadPin(BUSY_1_GPIO_Port, BUSY_1_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_RESET);
 	status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
 	status = HAL_SPI_Transmit(&hspi1, (uint8_t*)params, numOfParams, 100);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_SET);
 	return status;
 }
 
 HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t params[], uint8_t response[], uint16_t numOfParams){
 	HAL_StatusTypeDef status;
-	while(HAL_GPIO_ReadPin(BUSY_GPIO_Port, BUSY_Pin) == GPIO_PIN_SET);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+	while(HAL_GPIO_ReadPin(BUSY_1_GPIO_Port, BUSY_1_Pin) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_RESET);
 	status = HAL_SPI_Transmit(&hspi1, &opcode, 1, 100);
 	status = HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)params, (uint8_t*)response, numOfParams, 100);
-	HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_SET);
 	return status;
 }
 
-void TxProtocol(){
-
-	uint8_t command1[2] = {138,0};
-	uint8_t data1[2] = {0,0};
-	sx126x_hal_write(&hspi1, command1, 2, data1, 2);
-
-	sx126x_pkt_type_t type;
-	sx126x_get_pkt_type(&hspi1, &type);
-
-	//uint8_t command2[3] = {17,0,0};
-	//uint8_t data2[2] = {0,0};
-	//sx126x_hal_read(&hspi1, command2, 3, data2, 2);
-
-	/*
+void setup(){
 	//set to standby
 	sx126x_set_standby(&hspi1, 0);
 
-	//set packet type
+	//set packet type to LORA
 	sx126x_set_pkt_type(&hspi1, 1);
 
 	//set frequency
-	sx126x_set_rf_freq(&hspi1, 432000000);
+	sx126x_set_rf_freq(&hspi1, 448000000);
 
 	//set pa config
 	struct sx126x_pa_cfg_params_s *params = malloc(sizeof(sx126x_pa_cfg_params_t));
-	params->pa_duty_cycle=3;
-	params->hp_max=5;
+	params->pa_duty_cycle=2;
+	params->hp_max=3;
 	params->device_sel=0;
 	params->pa_lut=1;
 	sx126x_set_pa_cfg(&hspi1, params);
 	free(params);
 
 	//set tx params
-	int8_t power = 22;
-	sx126x_set_tx_params(&hspi1, power, SX126X_RAMP_80_US);
+	int8_t power = 14;
+	sx126x_set_tx_params(&hspi1, power, SX126X_RAMP_200_US);
 
 	//set buffer base address
 	sx126x_set_buffer_base_address(&hspi1, 0, 0);
 
-	//write buffer
-	uint8_t buffer[2] = {1,2};
-	sx126x_write_buffer(&hspi1, 0, buffer, 2);
-
 	//modulation parameters
 	struct sx126x_mod_params_lora_s *mod_params = malloc(sizeof(sx126x_mod_params_lora_t));
-	mod_params->sf=8;
-	mod_params->bw=0;
+	mod_params->sf=9;
+	mod_params->bw=3;
 	mod_params->cr=1;
 	mod_params->ldro=0;
 	sx126x_set_lora_mod_params(&hspi1, mod_params);
 	free(mod_params);
 
+	//set dio and irq params
+	sx126x_set_dio_irq_params(&hspi1,1023,0b1000000001,0,0);
+}
+
+void TxProtocol(){
+
+	setup();
+
+	sx126x_set_standby(&hspi1, 0);
+
+	sx126x_set_pkt_type(&hspi1, 1);
+
+	sx126x_set_rx_tx_fallback_mode(&hspi1, 0x20);
+
+	sx126x_set_dio2_as_rf_sw_ctrl(&hspi1, 1);
+
+	sx126x_set_dio3_as_tcxo_ctrl(&hspi1, 0x06, 100);
+
+	sx126x_cal(&hspi1, SX126X_CAL_ALL);
+
+	HAL_Delay(50);
+
+	sx126x_set_standby(&hspi1, 0);
+
+	sx126x_set_reg_mode(&hspi1, 0x01);
+
+	//set image calibration
+	uint8_t opcode = 0x98;
+	uint8_t params1[4] = {0x6F,0x75};
+	writeCommand(opcode, params1, 2);
+
+	sx126x_set_rf_freq(&hspi1, 448000000);
+
+	//set pa config
+	struct sx126x_pa_cfg_params_s *params2 = malloc(sizeof(sx126x_pa_cfg_params_t));
+	params2->pa_duty_cycle=2;
+	params2->hp_max=3;
+	params2->device_sel=0;
+	params2->pa_lut=1;
+	sx126x_set_pa_cfg(&hspi1, params2);
+	free(params2);
+
+	sx126x_set_tx_params(&hspi1, 14, SX126X_RAMP_200_US);
+
+	sx126x_set_buffer_base_address(&hspi1, 0, 0);
+
+	//modulation parameters
+	struct sx126x_mod_params_lora_s *mod_params0 = malloc(sizeof(sx126x_mod_params_lora_t));
+	mod_params0->sf=9;
+	mod_params0->bw=3;
+	mod_params0->cr=1;
+	mod_params0->ldro=0;
+	sx126x_set_lora_mod_params(&hspi1, mod_params0);
+	free(mod_params0);
+
 	//packet params
 	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
-	lora_params->preamble_len_in_symb=8;
-	lora_params->header_type=SX126X_LORA_PKT_EXPLICIT;
-	lora_params->pld_len_in_bytes=2;
-	lora_params->crc_is_on=0;
+	lora_params->preamble_len_in_symb=12;
+	lora_params->header_type=0;
+	lora_params->pld_len_in_bytes=0xFF;
+	lora_params->crc_is_on=1;
 	lora_params->invert_iq_is_on=0;
 	sx126x_set_lora_pkt_params(&hspi1, lora_params);
 	free(lora_params);
 
-	//set dio and irq params
-	sx126x_set_dio_irq_params(&hspi1,1,1,0,0);
+	sx126x_set_dio_irq_params(&hspi1,1023,0b1000000001,0,0);
 
+	/*
 	//set tx mode
 	sx126x_set_tx(&hspi1, 100);
 
@@ -186,114 +227,12 @@ void TxProtocol(){
 	//clear irq status
 	sx126x_irq_mask_t irq = SX126X_IRQ_TX_DONE  ;
 	sx126x_get_and_clear_irq_status(&hspi1, &irq);
-	 */
 
-	//1. Set to Standby Mode
-	//uint8_t opcode = 128; //0x80
-	//uint8_t params1[1] = {0};
-	//uint16_t numParams = 1;
-	//writeCommand(opcode, params1, numParams);
-
-	//2. Set Packet Type
-	//opcode = 138; //0x8A
-	//uint8_t params2[1] = {1};
-	//numParams = 1;
-	//writeCommand(opcode, params2, numParams);
-
-	//Get Packet Type test
-	//opcode = 17;
-	//uint8_t params[2] = {0,0};
-	//uint8_t buffer[2];
-	//numParams = 2;
-	//HAL_StatusTypeDef status = readCommand(opcode, params, buffer, numParams);
-
-	//3. Set Rf Frequency
-	//opcode = 134; //0x86
-	//uint8_t params3[4] = {0,0,0,255};
-	//numParams = 4;
-	//writeCommand(opcode, params3, numParams);
-
-	//4. Set PA Config
-	//opcode = 149; //0x95
-	//uint8_t params4[4] = {3,5,0,1}; //check PA operating modes with optimal settings
-	//numParams = 4;
-	//writeCommand(opcode, params4, numParams);
-
-	//6-3. Set Tx Parameters
-	//opcode = 142; //0x8E
-	//uint8_t params6_3[2] = {22,3};
-	//numParams = 2;
-	//writeCommand(opcode, params6_3, numParams);
-
-	//5. Set Buffer Base Addresses
-	//opcode = 143; //0x8F
-	//uint8_t params5[2] = {0,0};
-	//numParams = 2;
-	//writeCommand(opcode, params5, numParams);
-
-	//7. Write Data to Buffer
-	//opcode = 14; //0x0E
-	//uint8_t params7[2] = {0,4};
-	//numParams = 2;
-	//writeCommand(opcode, params7, numParams);
-
-	//6-1. Set Modulation Parameters
-	//opcode = 139; //0x8B
-	//uint8_t params6_1[8] = {8,0,1,0,0,0,0,0};
-	//numParams = 8;
-	//writeCommand(opcode, params6_1, numParams);
-
-	//6-2. Set Packet Parameters
-	//opcode = 140; //0x8C
-	//uint8_t params6_2[8] = {4,0,0,1,1,0,0,0};
-	//numParams = 8;
-	//writeCommand(opcode, params6_2, numParams);
-
-	//8. Set DIO and IRQ
-	//opcode = 131; //0x83
-	//uint8_t params8[8] = {1,0,1,0,0,0,0,0};
-	//numParams = 8;
-	//writeCommand(opcode, params8, numParams);
-
-	//9. Set to Tx Mode
-	//opcode = 131; //0x83
-	//uint8_t params9[3] = {255,255,255};
-	//numParams = 3;
-	//writeCommand(opcode, params9, numParams);
-
-	//Get status
-	//opcode = 192; //0xC0
-	//uint8_t params_get_0[1] = {0};
-	//uint8_t buffer0[1];
-	//readCommand(opcode, params_get_0, buffer0, 1);
-
-	//Get Device Errors
-	//opcode = 23; //0x17
-	//uint8_t params_get_1[3] = {0,0,0};
-	//uint8_t buffer1[3];
-	//readCommand(opcode, params_get_1, buffer1, 3);
-
-	//Clear Device Errors
-	//opcode = 7; //0x07
-	//uint8_t params_get_2[2] = {0,0};
-	//uint8_t buffer2[2];
-	//readCommand(opcode, params_get_2, buffer2, 2);
-
-	//Get IRQ Status
-	//opcode = 18; //0x12
-	//uint8_t params_get_irq[3] = {0,0,0};
-	//uint8_t buffer_irq[3];
-	//readCommand(opcode, params_get_irq, buffer_irq, 3);
-
-	//Clear IRQ status
-	//opcode = 2; //0x02
-	//uint8_t params_get_3[2] = {1,0};
-	//writeCommand(opcode, params_get_3, 2);
-
-	char buffer[100];
-	sprintf(buffer, "Packet Type: %u\n", type);
-	transmitBuffer(buffer);
+	char buf[100];
+	sprintf(buf, "Packet Type: %u\n", type);
+	transmitBuffer(buf);
 	transmitBuffer("\n\n");
+	*/
 
 }
 /* USER CODE END 0 */
@@ -328,20 +267,75 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USART3_UART_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_SET); //Make sure reset is off
+  HAL_GPIO_WritePin(NRESET_1_GPIO_Port, NRESET_1_Pin, GPIO_PIN_SET); //Make sure reset is off
+  HAL_GPIO_WritePin(NRESET_2_GPIO_Port, NRESET_2_Pin, GPIO_PIN_SET);
+  HAL_StatusTypeDef command_status;
+  char buf[100];
+  TxProtocol();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  sx126x_irq_mask_t irq = SX126X_IRQ_ALL;
+	  command_status = sx126x_clear_irq_status(&hspi1, &irq);
 
-	TxProtocol();
-	HAL_Delay(500);
-    /* USER CODE END WHILE */
+	  uint8_t buffer_data[10] = {10,9,8,7,6,5,4,3,2,1};
+	  command_status = sx126x_write_buffer(&hspi1, 0, buffer_data, 10);
 
-    /* USER CODE BEGIN 3 */
+	  //packet params
+	  struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
+	  lora_params->preamble_len_in_symb=12;
+	  lora_params->header_type=0;
+	  lora_params->pld_len_in_bytes=10;
+	  lora_params->crc_is_on=1;
+	  lora_params->invert_iq_is_on=0;
+	  command_status = sx126x_set_lora_pkt_params(&hspi1, lora_params);
+	  free(lora_params);
+	  command_status = sx126x_set_tx(&hspi1, 1000);//0x061A80);
+	  HAL_Delay(1400);
+
+	  if (command_status != HAL_OK) {
+		  transmitBuffer("setTx Failed\n");
+		  transmitBuffer("Set TX command status: ");
+		  transmitStatus(command_status);
+
+		  sx126x_chip_status_t device_status;
+	      command_status = sx126x_get_status(&hspi1, &device_status);
+
+	      transmitBuffer("Get Status command status: ");
+	      transmitStatus(command_status);
+	  }
+
+	  //get irq status
+	  uint8_t opcode3 = 0x12;
+	  uint8_t params3[3] = {0,0,0};
+	  uint8_t data3[3];
+	  readCommand(opcode3, params3, data3, 3);
+
+	  irq = data3[2] | data3[1] << 8;
+	  while ( (!(irq & SX126X_IRQ_TX_DONE)) && (!(irq & SX126X_IRQ_TIMEOUT)) ) // Wait until tx done or timeout flag is indicated
+	  {
+		  	readCommand(opcode3, params3, data3, 3);
+		  	irq = data3[2] << 8 | data3[1] << 8;
+	  }
+	  if ((irq & SX126X_IRQ_TIMEOUT)) {
+		  transmitBuffer("TIMEOUT!\n");
+	  } else {
+		  transmitBuffer("TX DONE!\n");
+	  }
+
+	  setup();
+
+	  HAL_Delay(200);
+
+	  /* USER CODE END WHILE */
+
+	  /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -429,6 +423,46 @@ static void MX_SPI1_Init(void)
 }
 
 /**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_4BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 7;
+  hspi2.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
+}
+
+/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -478,33 +512,33 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(NSS_GPIO_Port, NSS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, NSS_1_Pin|NSS_2_Pin|NRESET_2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(NRESET_GPIO_Port, NRESET_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(NRESET_1_GPIO_Port, NRESET_1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : NSS_Pin */
-  GPIO_InitStruct.Pin = NSS_Pin;
+  /*Configure GPIO pins : NSS_1_Pin NSS_2_Pin NRESET_2_Pin */
+  GPIO_InitStruct.Pin = NSS_1_Pin|NSS_2_Pin|NRESET_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(NSS_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : BUSY_Pin */
-  GPIO_InitStruct.Pin = BUSY_Pin;
+  /*Configure GPIO pins : BUSY_1_Pin BUSY_2_Pin DIO1_2_Pin */
+  GPIO_InitStruct.Pin = BUSY_1_Pin|BUSY_2_Pin|DIO1_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(BUSY_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : NRESET_Pin */
-  GPIO_InitStruct.Pin = NRESET_Pin;
+  /*Configure GPIO pin : NRESET_1_Pin */
+  GPIO_InitStruct.Pin = NRESET_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(NRESET_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(NRESET_1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DIO1_Pin DIO2_Pin DIO3_Pin */
-  GPIO_InitStruct.Pin = DIO1_Pin|DIO2_Pin|DIO3_Pin;
+  /*Configure GPIO pins : DIO1_1_Pin DIO2_1_Pin DIO3_1_Pin */
+  GPIO_InitStruct.Pin = DIO1_1_Pin|DIO2_1_Pin|DIO3_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);

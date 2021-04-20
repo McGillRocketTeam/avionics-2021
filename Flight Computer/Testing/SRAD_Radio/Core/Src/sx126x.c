@@ -449,7 +449,6 @@ sx126x_status_t sx126x_set_pa_cfg( const void* context, const sx126x_pa_cfg_para
     uint8_t buf[SX126X_SIZE_SET_PA_CFG] = { 0 };
 
     buf[0] = SX126X_SET_PA_CFG;
-
     buf[1] = params->pa_duty_cycle;
     buf[2] = params->hp_max;
     buf[3] = params->device_sel;
@@ -735,13 +734,14 @@ sx126x_status_t sx126x_set_lora_mod_params( const void* context, const sx126x_mo
     buf[4] = params->ldro & 0x01;
 
     status = ( sx126x_status_t ) sx126x_hal_write( context, buf, SX126X_SIZE_SET_MODULATION_PARAMS_LORA, 0, 0 );
-
+    /*
     if( status == SX126X_STATUS_OK )
     {
         // WORKAROUND - Modulation Quality with 500 kHz LoRa Bandwidth, see datasheet DS_SX1261-2_V1.2 §15.1
         status = sx126x_tx_modulation_workaround( context, SX126X_PKT_TYPE_LORA, params->bw );
         // WORKAROUND END
     }
+    */
 
     return status;
 }

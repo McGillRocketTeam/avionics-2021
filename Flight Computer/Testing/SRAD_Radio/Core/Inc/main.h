@@ -58,18 +58,26 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define NSS_Pin GPIO_PIN_4
-#define NSS_GPIO_Port GPIOC
-#define BUSY_Pin GPIO_PIN_5
-#define BUSY_GPIO_Port GPIOC
-#define NRESET_Pin GPIO_PIN_0
-#define NRESET_GPIO_Port GPIOB
-#define DIO1_Pin GPIO_PIN_1
-#define DIO1_GPIO_Port GPIOB
-#define DIO2_Pin GPIO_PIN_2
-#define DIO2_GPIO_Port GPIOB
-#define DIO3_Pin GPIO_PIN_10
-#define DIO3_GPIO_Port GPIOB
+#define NSS_1_Pin GPIO_PIN_4
+#define NSS_1_GPIO_Port GPIOC
+#define BUSY_1_Pin GPIO_PIN_5
+#define BUSY_1_GPIO_Port GPIOC
+#define NRESET_1_Pin GPIO_PIN_0
+#define NRESET_1_GPIO_Port GPIOB
+#define DIO1_1_Pin GPIO_PIN_1
+#define DIO1_1_GPIO_Port GPIOB
+#define DIO2_1_Pin GPIO_PIN_2
+#define DIO2_1_GPIO_Port GPIOB
+#define DIO3_1_Pin GPIO_PIN_10
+#define DIO3_1_GPIO_Port GPIOB
+#define NSS_2_Pin GPIO_PIN_6
+#define NSS_2_GPIO_Port GPIOC
+#define BUSY_2_Pin GPIO_PIN_7
+#define BUSY_2_GPIO_Port GPIOC
+#define NRESET_2_Pin GPIO_PIN_8
+#define NRESET_2_GPIO_Port GPIOC
+#define DIO1_2_Pin GPIO_PIN_9
+#define DIO1_2_GPIO_Port GPIOC
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
