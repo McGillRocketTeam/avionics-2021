@@ -35,9 +35,11 @@
  */
 
 #include <string.h>  // memcpy
+#include <stdio.h>
+#include <stdlib.h>
 #include "sx126x.h"
-#include "sx126x_hal.h"
 #include "sx126x_regs.h"
+#include "main.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -211,6 +213,21 @@ gfsk_bw_t gfsk_bw[] = {
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
 
+static uint16_t NSS;
+static GPIO_TypeDef* NSS_GPIO;
+static uint16_t NRESET;
+static GPIO_TypeDef* NRESET_GPIO;
+static uint16_t BUSY;
+static GPIO_TypeDef* BUSY_GPIO;
+static uint16_t DIO1;
+static GPIO_TypeDef* DIO1_GPIO;
+static uint16_t DIO2;
+static GPIO_TypeDef* DIO2_GPIO;
+static uint16_t DIO3;
+static GPIO_TypeDef* DIO3_GPIO;
+
+static SPI_HandleTypeDef hspi;
+
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE FUNCTIONS DECLARATION -------------------------------------------
@@ -239,6 +256,324 @@ static inline uint32_t sx126x_get_gfsk_crc_len_in_bytes( sx126x_gfsk_crc_types_t
  * -----------------------------------------------------------------------------
  * --- PUBLIC FUNCTIONS DEFINITION ---------------------------------------------
  */
+
+/**
+ * Radio data transfer - write
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to the opcode be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [in] data             Pointer to the buffer to the data be transmitted
+ * @param [in] data_length      Buffer size to be transmitted
+ *
+ * @returns Operation status
+ */
+
+
+sx126x_hal_status_t sx126x_hal_write( const void* hspi, const uint8_t* command, const uint16_t command_length,
+                                      const uint8_t* data, const uint16_t data_length ){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_GPIO,BUSY) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(hspi, command, command_length, 100);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	return status;
+}
+
+/**
+ * Radio data transfer - read
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to the opcode be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [in] data             Pointer to the buffer that receives the data
+ * @param [in] data_length      Buffer size to be received
+ *
+ * @returns Operation status
+ */
+
+
+sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, const uint16_t command_lenght,
+                                     uint8_t* data, const uint16_t data_length ){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_GPIO, BUSY) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(hspi, command, 1, 100);
+	status = HAL_SPI_TransmitReceive(hspi, command+sizeof(uint8_t), data, command_lenght-1, 100);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	return status;
+}
+
+/**
+ * Reset the radio
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_reset( const void* hspi ){
+	HAL_StatusTypeDef status = HAL_OK;
+	if(HAL_GPIO_ReadPin(BUSY_GPIO, BUSY) == GPIO_PIN_RESET){
+		HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_RESET);
+		HAL_Delay(5);
+		HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
+	}
+	return status;
+}
+
+/**
+ * Wake the radio up.
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_wakeup( const void* hspi ){
+	HAL_StatusTypeDef status = HAL_OK;
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	HAL_Delay(1);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	return status;
+}
+
+HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_GPIO, BUSY) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(&hspi, &opcode, 1, 100);
+	status = HAL_SPI_Transmit(&hspi, (uint8_t*)params, numOfParams, 100);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	return status;
+}
+
+HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t params[], uint8_t response[], uint16_t numOfParams){
+	HAL_StatusTypeDef status;
+	while(HAL_GPIO_ReadPin(BUSY_GPIO, BUSY) == GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_RESET);
+	status = HAL_SPI_Transmit(&hspi, &opcode, 1, 100);
+	status = HAL_SPI_TransmitReceive(&hspi, (uint8_t*)params, (uint8_t*)response, numOfParams, 100);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	return status;
+}
+
+void set_NSS_pin(GPIO_TypeDef* _NSS_GPIO, uint16_t _NSS){
+	NSS = _NSS;
+	NSS_GPIO = _NSS_GPIO;
+}
+
+void set_BUSY_pin(GPIO_TypeDef* _BUSY_GPIO, uint16_t _BUSY){
+	BUSY = _BUSY;
+	BUSY_GPIO = _BUSY_GPIO;
+}
+
+void set_NRESET_pin(GPIO_TypeDef* _NRESET_GPIO, uint16_t _NRESET){
+	NRESET = _NRESET;
+	NRESET_GPIO = _NRESET_GPIO;
+}
+
+void set_DIO1_pin(GPIO_TypeDef* _DIO1_GPIO, uint16_t _DIO1){
+	DIO1 = _DIO1;
+	DIO1_GPIO = _DIO1_GPIO;
+}
+
+void set_DIO2_pin(GPIO_TypeDef* _DIO2_GPIO, uint16_t _DIO2){
+	DIO2 = _DIO2;
+	DIO2_GPIO = _DIO2_GPIO;
+}
+
+void set_DIO3_pin(GPIO_TypeDef* _DIO3_GPIO, uint16_t _DIO3){
+	DIO3 = _DIO3;
+	DIO3_GPIO = _DIO3_GPIO;
+}
+
+void set_hspi(SPI_HandleTypeDef _hspi){
+	hspi = _hspi;
+}
+
+void Tx_setup(){
+
+	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET); //Make sure reset is off
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET); //Make sure chip select is off
+
+	//set to standby
+	sx126x_set_standby(&hspi, 0);
+
+	//set packet type to LORA
+	sx126x_set_pkt_type(&hspi, 1);
+
+	//set frequency
+	sx126x_set_rf_freq(&hspi, 448000000);
+
+	//set pa config
+	struct sx126x_pa_cfg_params_s *params = malloc(sizeof(sx126x_pa_cfg_params_t));
+	params->pa_duty_cycle=2;
+	params->hp_max=3;
+	params->device_sel=0;
+	params->pa_lut=1;
+	sx126x_set_pa_cfg(&hspi, params);
+	free(params);
+
+	//set tx params
+	int8_t power = 14;
+	sx126x_set_tx_params(&hspi, power, SX126X_RAMP_200_US);
+
+	//set buffer base address
+	sx126x_set_buffer_base_address(&hspi, 0, 0);
+
+	//set modulation parameters
+	struct sx126x_mod_params_lora_s *mod_params = malloc(sizeof(sx126x_mod_params_lora_t));
+	mod_params->sf=9;
+	mod_params->bw=3;
+	mod_params->cr=1;
+	mod_params->ldro=0;
+	sx126x_set_lora_mod_params(&hspi, mod_params);
+	free(mod_params);
+
+	//set dio and irq parameters
+	sx126x_set_dio_irq_params(&hspi,1023,0b1000000001,0,0);
+
+	//sx126x_set_standby(&hspi1, 0);
+
+	//sx126x_set_pkt_type(&hspi1, 1);
+
+	sx126x_set_rx_tx_fallback_mode(&hspi, 0x20);
+
+	sx126x_set_dio2_as_rf_sw_ctrl(&hspi, 1);
+
+	sx126x_set_dio3_as_tcxo_ctrl(&hspi, 0x06, 100);
+
+	sx126x_cal(&hspi, SX126X_CAL_ALL);
+
+	HAL_Delay(50);
+
+	//sx126x_set_standby(&hspi1, 0);
+
+	sx126x_set_reg_mode(&hspi, 0x01);
+
+	//set image calibration
+	uint8_t opcode = 0x98;
+	uint8_t params1[4] = {0x6F,0x75};
+	writeCommand(opcode, params1, 2);
+
+	//sx126x_set_rf_freq(&hspi1, 448000000);
+
+	/*
+	//set pa config
+	struct sx126x_pa_cfg_params_s *params2 = malloc(sizeof(sx126x_pa_cfg_params_t));
+	params2->pa_duty_cycle=2;
+	params2->hp_max=3;
+	params2->device_sel=0;
+	params2->pa_lut=1;
+	sx126x_set_pa_cfg(&hspi1, params2);
+	free(params2);
+	*/
+
+	//sx126x_set_tx_params(&hspi1, 14, SX126X_RAMP_200_US);
+
+	//sx126x_set_buffer_base_address(&hspi1, 0, 0);
+
+	/*
+	//modulation parameters
+	struct sx126x_mod_params_lora_s *mod_params0 = malloc(sizeof(sx126x_mod_params_lora_t));
+	mod_params0->sf=9;
+	mod_params0->bw=3;
+	mod_params0->cr=1;
+	mod_params0->ldro=0;
+	sx126x_set_lora_mod_params(&hspi1, mod_params0);
+	free(mod_params0);
+	*/
+
+	//packet params
+	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
+	lora_params->preamble_len_in_symb=12;
+	lora_params->header_type=0;
+	lora_params->pld_len_in_bytes=0xFF;
+	lora_params->crc_is_on=1;
+	lora_params->invert_iq_is_on=0;
+	sx126x_set_lora_pkt_params(&hspi, lora_params);
+	free(lora_params);
+
+	//sx126x_set_dio_irq_params(&hspi1,1023,0b1000000001,0,0);
+
+}
+
+void TxProtocol(uint8_t data[], uint8_t data_length){
+
+	uint8_t type;
+	sx126x_get_pkt_type(&hspi, &type);
+	char b[100];
+	sprintf(b, "Type: %u\n", type);
+	transmitBuffer(b);
+
+	HAL_StatusTypeDef command_status;
+	sx126x_irq_mask_t irq = SX126X_IRQ_ALL;
+	command_status = sx126x_clear_irq_status(&hspi, irq);
+
+	command_status = sx126x_write_buffer(&hspi, 0, data, data_length);
+
+	//packet params
+	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
+	lora_params->preamble_len_in_symb=12;
+	lora_params->header_type=0;
+	lora_params->pld_len_in_bytes=10;
+	lora_params->crc_is_on=1;
+	lora_params->invert_iq_is_on=0;
+	command_status = sx126x_set_lora_pkt_params(&hspi, lora_params);
+	free(lora_params);
+	command_status = sx126x_set_tx(&hspi, 1000);
+	HAL_Delay(1400);
+
+	if (command_status != HAL_OK) {
+		transmitBuffer("setTx Failed\n");
+		transmitBuffer("Set TX command status: ");
+		transmitStatus(command_status);
+
+		sx126x_chip_status_t device_status;
+		command_status = sx126x_get_status(&hspi, &device_status);
+
+		transmitBuffer("Get Status command status: ");
+		transmitStatus(command_status);
+	}
+
+	//get irq status
+	uint8_t opcode3 = 0x12;
+	uint8_t params3[3] = {0,0,0};
+	uint8_t data3[3];
+	readCommand(opcode3, params3, data3, 3);
+
+	irq = data3[2] | data3[1] << 8;
+	while ( (!(irq & SX126X_IRQ_TX_DONE)) && (!(irq & SX126X_IRQ_TIMEOUT)) ) {
+		readCommand(opcode3, params3, data3, 3);
+		irq = data3[2] << 8 | data3[1] << 8;
+	}
+	if ((irq & SX126X_IRQ_TIMEOUT)) {
+		transmitBuffer("TIMEOUT!\n");
+	} else {
+		transmitBuffer("TX DONE!\n");
+	}
+
+	//setup();
+
+	HAL_Delay(200);
+}
+
+void Rx_setup(){
+	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+}
+
+void RxProtocol(uint8_t data[], uint8_t data_length){
+
+}
 
 sx126x_status_t sx126x_set_sleep( const void* context, const sx126x_sleep_cfgs_t cfg )
 {

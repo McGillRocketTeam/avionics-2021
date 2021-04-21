@@ -43,6 +43,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "main.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -115,6 +116,12 @@ typedef enum sx126x_status_e
     SX126X_STATUS_UNKNOWN_VALUE = 2,
     SX126X_STATUS_ERROR = 3,
 } sx126x_status_t;
+
+typedef enum sx126x_hal_status_e
+{
+    SX126X_HAL_STATUS_OK    = 0,
+    SX126X_HAL_STATUS_ERROR = 3,
+} sx126x_hal_status_t;
 
 /**
  * @brief SX126X sleep mode configurations definition
@@ -598,6 +605,87 @@ typedef uint16_t sx126x_errors_mask_t;
 //
 // Operational Modes Functions
 //
+
+HAL_StatusTypeDef writeCommand(uint8_t opcode, uint8_t params[], uint16_t numOfParams);
+
+HAL_StatusTypeDef readCommand(uint8_t opcode, uint8_t params[], uint8_t response[], uint16_t numOfParams);
+
+void set_NSS_pin(GPIO_TypeDef* _NSS_GPIO, uint16_t _NSS);
+
+void set_BUSY_pin(GPIO_TypeDef* _BUSY_GPIO, uint16_t _BUSY);
+
+void set_NRESET_pin(GPIO_TypeDef* _NRESET_GPIO, uint16_t _NRESET);
+
+void set_DIO1_pin(GPIO_TypeDef* _DIO1_GPIO, uint16_t _DIO1);
+
+void set_DIO2_pin(GPIO_TypeDef* _DIO2_GPIO, uint16_t _DIO2);
+
+void set_DIO3_pin(GPIO_TypeDef* _DIO3_GPIO, uint16_t _DIO3);
+
+void set_hspi(SPI_HandleTypeDef _hspi);
+
+void Tx_setup();
+
+void TxProtocol(uint8_t data[], uint8_t data_length);
+
+void Rx_setup();
+
+void RxProtocol(uint8_t data[], uint8_t data_length);
+
+/**
+ * Radio data transfer - write
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [in] data             Pointer to the buffer to be transmitted
+ * @param [in] data_length      Buffer size to be transmitted
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_write( const void* context, const uint8_t* command, const uint16_t command_length,
+                                      const uint8_t* data, const uint16_t data_length );
+
+/**
+ * Radio data transfer - read
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context          Radio implementation parameters
+ * @param [in] command          Pointer to the buffer to be transmitted
+ * @param [in] command_length   Buffer size to be transmitted
+ * @param [in] data             Pointer to the buffer to be received
+ * @param [in] data_length      Buffer size to be received
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_read( const void* context, const uint8_t* command, const uint16_t command_length,
+                                     uint8_t* data, const uint16_t data_length );
+
+/**
+ * Reset the radio
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_reset( const void* context );
+
+/**
+ * Wake the radio up.
+ *
+ * @remark Shall be implemented by the user
+ *
+ * @param [in] context Radio implementation parameters
+ *
+ * @returns Operation status
+ */
+sx126x_hal_status_t sx126x_hal_wakeup( const void* context );
+
 
 /**
  * @brief Set the chip in sleep mode
