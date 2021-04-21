@@ -319,11 +319,9 @@ sx126x_hal_status_t sx126x_hal_read( const void* hspi, const uint8_t* command, c
  */
 sx126x_hal_status_t sx126x_hal_reset( const void* hspi ){
 	HAL_StatusTypeDef status = HAL_OK;
-	if(HAL_GPIO_ReadPin(BUSY_GPIO, BUSY) == GPIO_PIN_RESET){
-		HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_RESET);
-		HAL_Delay(5);
-		HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
-	}
+	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_RESET);
+	HAL_Delay(100);
+	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
 	return status;
 }
 
@@ -400,8 +398,7 @@ void set_hspi(SPI_HandleTypeDef _hspi){
 }
 
 void Tx_setup(){
-
-	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET); //Make sure reset is off
+	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET); //Make sure chip select is off
 
 	//set to standby
@@ -518,13 +515,20 @@ void TxProtocol(uint8_t data[], uint8_t data_length){
 	sx126x_irq_mask_t irq = SX126X_IRQ_ALL;
 	command_status = sx126x_clear_irq_status(&hspi, irq);
 
-	command_status = sx126x_write_buffer(&hspi, 0, data, data_length);
+	uint8_t opcode = 0x0E;
+	uint8_t params[data_length+1];
+	params[0] = 0;
+	for(int i = 0; i < data_length; i++){
+		params[i+1] = data[i];
+	}
+	writeCommand(opcode, params, data_length+1);
+	//command_status = sx126x_write_buffer(&hspi, 0, data, data_length);
 
 	//packet params
 	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
 	lora_params->preamble_len_in_symb=12;
 	lora_params->header_type=0;
-	lora_params->pld_len_in_bytes=10;
+	lora_params->pld_len_in_bytes=data_length;
 	lora_params->crc_is_on=1;
 	lora_params->invert_iq_is_on=0;
 	command_status = sx126x_set_lora_pkt_params(&hspi, lora_params);
