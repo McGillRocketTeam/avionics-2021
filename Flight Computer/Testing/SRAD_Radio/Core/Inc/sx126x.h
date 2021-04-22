@@ -630,7 +630,7 @@ void TxProtocol(uint8_t data[], uint8_t data_length);
 
 void Rx_setup();
 
-void RxProtocol(uint8_t data[], uint8_t data_length);
+void RxProtocol(uint8_t data[]);
 
 /**
  * Radio data transfer - write

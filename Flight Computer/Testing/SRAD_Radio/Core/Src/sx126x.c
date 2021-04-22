@@ -572,11 +572,181 @@ void TxProtocol(uint8_t data[], uint8_t data_length){
 
 void Rx_setup(){
 	HAL_GPIO_WritePin(NRESET_GPIO, NRESET, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NSS_GPIO, NSS, GPIO_PIN_SET); //Make sure chip select is off
+
+	//set to standby
+	sx126x_set_standby(&hspi, 0);
+
+	//set packet type to LORA
+	sx126x_set_pkt_type(&hspi, 1);
+
+	//set frequency
+	sx126x_set_rf_freq(&hspi, 448000000);
+
+	//set pa config
+	struct sx126x_pa_cfg_params_s *params = malloc(sizeof(sx126x_pa_cfg_params_t));
+	params->pa_duty_cycle=2;
+	params->hp_max=3;
+	params->device_sel=0;
+	params->pa_lut=1;
+	sx126x_set_pa_cfg(&hspi, params);
+	free(params);
+
+	//set tx params
+	int8_t power = 14;
+	sx126x_set_tx_params(&hspi, power, SX126X_RAMP_200_US);
+
+	//set buffer base address
+	sx126x_set_buffer_base_address(&hspi, 0, 0);
+
+	//set modulation parameters
+	struct sx126x_mod_params_lora_s *mod_params = malloc(sizeof(sx126x_mod_params_lora_t));
+	mod_params->sf=9;
+	mod_params->bw=3;
+	mod_params->cr=1;
+	mod_params->ldro=0;
+	sx126x_set_lora_mod_params(&hspi, mod_params);
+	free(mod_params);
+
+	//set dio and irq parameters
+	sx126x_set_dio_irq_params(&hspi,1023,0b1000000010,0,0);
+
+	//sx126x_set_standby(&hspi1, 0);
+
+	//sx126x_set_pkt_type(&hspi1, 1);
+
+	sx126x_set_rx_tx_fallback_mode(&hspi, 0x20);
+
+	sx126x_set_dio2_as_rf_sw_ctrl(&hspi, 1);
+
+	sx126x_set_dio3_as_tcxo_ctrl(&hspi, 0x06, 100);
+
+	sx126x_cal(&hspi, SX126X_CAL_ALL);
+
+	HAL_Delay(50);
+
+	//sx126x_set_standby(&hspi1, 0);
+
+	sx126x_set_reg_mode(&hspi, 0x01);
+
+	//set image calibration
+	uint8_t opcode = 0x98;
+	uint8_t params1[4] = {0x6F,0x75};
+	writeCommand(opcode, params1, 2);
+
+	//sx126x_set_rf_freq(&hspi1, 448000000);
+
+	/*
+	//set pa config
+	struct sx126x_pa_cfg_params_s *params2 = malloc(sizeof(sx126x_pa_cfg_params_t));
+	params2->pa_duty_cycle=2;
+	params2->hp_max=3;
+	params2->device_sel=0;
+	params2->pa_lut=1;
+	sx126x_set_pa_cfg(&hspi1, params2);
+	free(params2);
+	*/
+
+	//sx126x_set_tx_params(&hspi1, 14, SX126X_RAMP_200_US);
+
+	//sx126x_set_buffer_base_address(&hspi1, 0, 0);
+
+	/*
+	//modulation parameters
+	struct sx126x_mod_params_lora_s *mod_params0 = malloc(sizeof(sx126x_mod_params_lora_t));
+	mod_params0->sf=9;
+	mod_params0->bw=3;
+	mod_params0->cr=1;
+	mod_params0->ldro=0;
+	sx126x_set_lora_mod_params(&hspi1, mod_params0);
+	free(mod_params0);
+	*/
+
+	//packet params
+	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
+	lora_params->preamble_len_in_symb=12;
+	lora_params->header_type=0;
+	lora_params->pld_len_in_bytes=0xFF;
+	lora_params->crc_is_on=1;
+	lora_params->invert_iq_is_on=0;
+	sx126x_set_lora_pkt_params(&hspi, lora_params);
+	free(lora_params);
+
+	//sx126x_set_dio_irq_params(&hspi1,1023,0b1000000001,0,0);
+
 }
 
-void RxProtocol(uint8_t data[], uint8_t data_length){
+void RxProtocol(uint8_t buffer_received[]){
 
+	HAL_StatusTypeDef command_status;
+	sx126x_irq_mask_t irq = SX126X_IRQ_ALL;
+	command_status = sx126x_clear_irq_status(&hspi, irq);
+
+	//packet params
+	struct sx126x_pkt_params_lora_s *lora_params = malloc(sizeof(sx126x_pkt_params_lora_t));
+	lora_params->preamble_len_in_symb=12;
+	lora_params->header_type=0;
+	lora_params->pld_len_in_bytes=10;
+	lora_params->crc_is_on=1;
+	lora_params->invert_iq_is_on=0;
+	command_status = sx126x_set_lora_pkt_params(&hspi, lora_params);
+	free(lora_params);
+	command_status = sx126x_set_rx(&hspi, 1000);
+	HAL_Delay(1400);
+
+	if (command_status != HAL_OK) {
+		transmitBuffer("setRx Failed\n");
+		transmitBuffer("Set TX command status: ");
+		transmitStatus(command_status);
+
+		sx126x_chip_status_t device_status;
+		command_status = sx126x_get_status(&hspi, &device_status);
+
+		transmitBuffer("Get Status command status: ");
+		transmitStatus(command_status);
+	}
+
+	//get irq status
+	uint8_t opcode3 = 0x12;
+	uint8_t params3[3] = {0,0,0};
+	uint8_t data3[3];
+	readCommand(opcode3, params3, data3, 3);
+
+	irq = data3[2] | data3[1] << 8;
+	while ( (!(irq & SX126X_IRQ_RX_DONE)) && (!(irq & SX126X_IRQ_TIMEOUT)) ) {
+		readCommand(opcode3, params3, data3, 3);
+		irq = data3[2] << 8 | data3[1] << 8;
+	}
+	if ((irq & SX126X_IRQ_TIMEOUT)) {
+		transmitBuffer("TIMEOUT!\n");
+	} else {
+		transmitBuffer("RX DONE!\n");
+	}
+
+	//get Rx Buffer Status
+	opcode3 = 0x13;
+	uint8_t params[3] = {0,0,0};
+	uint8_t bufferStatus[3];
+	readCommand(opcode3, params, bufferStatus, 3);
+
+	char buf[100];
+	sprintf(buf, "Buffer Size: %u\n", bufferStatus[1]);
+	transmitBuffer(buf);
+
+	//read buffer
+	opcode3 = 0x1E;
+	uint8_t params5[bufferStatus[1]+2];
+	params5[0] = bufferStatus[2];
+	uint8_t data_received[bufferStatus[1]+2];
+	for(int i = 1; i < bufferStatus[1]+2;i++){
+		params5[0] = 0;
+	}
+	readCommand(opcode3, params5, data_received, bufferStatus[1]+2);
+	for(int i = 2; i < bufferStatus[1]+2; i++){
+		buffer_received[i-2] = data_received[i];
+	}
+
+	HAL_Delay(200);
 }
 
 sx126x_status_t sx126x_set_sleep( const void* context, const sx126x_sleep_cfgs_t cfg )

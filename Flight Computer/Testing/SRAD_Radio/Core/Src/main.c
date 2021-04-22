@@ -142,15 +142,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  uint8_t buffer_sent[1] = {0};
-	  uint8_t buffer_received[1];
-	  TxProtocol(buffer_sent, 1);
-	  //RxProtocol(buffer_received, 10);
-	  char buff[100];
-	  sprintf(buff, "Buffer Sent: [%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",buffer_sent[0],buffer_sent[1],buffer_sent[2],buffer_sent[3],buffer_sent[4],buffer_sent[5],buffer_sent[6],buffer_sent[7],buffer_sent[8],buffer_sent[9]);
-	  transmitBuffer(buff);
-	  sprintf(buff, "Buffer Received: [%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",buffer_received[0],buffer_received[1],buffer_received[2],buffer_received[3],buffer_received[4],buffer_received[5],buffer_received[6],buffer_received[7],buffer_received[8],buffer_received[9]);
-	  transmitBuffer(buff);
+	  uint8_t buffer_sent[5] = {10,11,12,13,14};
+	  //uint8_t buffer_received[100];
+	  TxProtocol(buffer_sent, 5);
+	  //RxProtocol(buffer_received);
+	  //char buff[200];
+	  //sprintf(buff, "Buffer Sent: [%u,%u,%u,%u,%u,%u,%u,%u,%u,%u]\n",buffer_sent[0],buffer_sent[1],buffer_sent[2],buffer_sent[3],buffer_sent[4],buffer_sent[5],buffer_sent[6],buffer_sent[7],buffer_sent[8],buffer_sent[9]);
+	  //transmitBuffer(buff);
+	  //sprintf(buff, "Buffer Received: [%u,%u,%u,%u]\n",buffer_received[0],buffer_received[1],buffer_received[2],buffer_received[3]);
+	  //transmitBuffer(buff);
 
     /* USER CODE END WHILE */
 
