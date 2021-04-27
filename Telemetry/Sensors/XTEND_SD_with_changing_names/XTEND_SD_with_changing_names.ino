@@ -17,15 +17,18 @@ File myFile;
  * s: slow transmission - 1s per transmission
  * f: fast transmission - 500ms per transmission
  */
-String incomingByte = "x";
+String incomingByte = "b";
 boolean isInitialized = false;
 int duration = 1000;
 float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
+long longitude, latitude;
+byte hour, minutes, sec;
+DateTime now;
 int SEA_LEVEL_hPA = 102540;
 uint8_t runNum = 0;
 char fileName[11];
 
-char packet[91];
+char packet[97];
 
 void setup() {
 
@@ -50,12 +53,18 @@ void setup() {
     }
   }
 
+  Serial.print(fileName);
+
+  myFile =SD.open(fileName, FILE_WRITE);
+  myFile.print("");
+  myFile.close();
+
 }
 
 void loop() {
 
   //======= RX ==========================================================================
-  readReceived();
+  //readReceived();
 
   //initializes 
   if (incomingByte == "b") {
@@ -68,43 +77,42 @@ void loop() {
   } else if (incomingByte == "f") {
     duration = 500;
   }
+  if (isInitialized) {
+    //======= BNO =========================================================================
+    imu::Vector<3> accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    accel_x = accel_euler.x();
+    accel_y = accel_euler.y();
+    accel_z = accel_euler.z();
   
-  //======= BNO =========================================================================
-  imu::Vector<3> accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  accel_x = accel_euler.x();
-  accel_y = accel_euler.y();
-  accel_z = accel_euler.z();
-
-  imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  pitch = euler.y();
-  roll = euler.z();
-  yaw = euler.x();
-
-  //======= BMP =========================================================================
-  temp = bmp.readTemperature();
-  pressure = bmp.readPressure();  
-  real_altitude = 44330 * (1.0 - pow(pressure / SEA_LEVEL_hPA, 0.190295));
-
-  //======= NEO =========================================================================
-  long latitude = myGPS.getLatitude();
-  long longitude = myGPS.getLongitude();
-
-  //======= TX =========================================================================
-  sprintf(packet, "%.2f;%.2
-  String str = String(pitch) + ";" + String(roll) + ";" + String(yaw) + ";";
-  str += String(accel_x) + ";" + String(accel_y) + ";" + String(accel_z) + ";";
-  str += String(pressure) +  ";" + String(real_altitude) + ";";
-  str += String(latitude) + ";" + String(longitude) + ";";
-  str += getDateTime();
-  //position estimate - kalman filter
-
-  Serial.println(str);
+    imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+    pitch = euler.y();
+    roll = euler.z();
+    yaw = euler.x();
   
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.print(str+ "\n");
-  myFile.close();
+    //======= BMP =========================================================================
+    temp = bmp.readTemperature();
+    pressure = bmp.readPressure();  
+    real_altitude = 44330 * (1.0 - pow(pressure / SEA_LEVEL_hPA, 0.190295));
   
-  delay(500);
+    //======= NEO =========================================================================
+    latitude = myGPS.getLatitude();
+    longitude = myGPS.getLongitude();
+  
+    //======= RTC =========================================================================
+    now = rtc.now();
+    hour = now.hour();
+    minutes = now.minute();
+    sec = now.second();
+  
+    //======= TX =========================================================================
+    sprintf(packet, "s%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
+              pitch, roll, yaw, accel_x, accel_y, accel_z, temp, pressure, real_altitude, latitude, longitude, hour, minutes, sec);
+
+    sendAndWrite(packet);
+
+    delay(duration);
+  }
+  
 }
 
 void initialize() {
