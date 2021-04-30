@@ -20,9 +20,8 @@
 
 /*
  * STUFF (bc i forget)
- * huart1 -> rnd radio (moved)
+ * huart1 -> to computer
  * huart2 -> GPS
- * huart3 -> to computer
  *
  * hspi2 -> SD card
  * hspi3 -> rnd radio
@@ -85,7 +84,6 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -158,7 +156,6 @@ static void MX_RTC_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_USART3_UART_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 /* USER CODE BEGIN PFP */
@@ -231,7 +228,6 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_USART3_UART_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_SPI3_Init();
@@ -239,6 +235,9 @@ int main(void)
 
   // Reset GPIOs
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
@@ -271,7 +270,7 @@ int main(void)
 
 #ifdef DEBUG_MODE
       sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS AND SD CARD ----------\n");
-      HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+      HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #endif
 
@@ -309,7 +308,7 @@ int main(void)
 #endif
 
 #ifdef DEBUG_MODE
-	HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
+	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 
 	fres = sd_save();
@@ -363,12 +362,10 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_USART2
-                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_I2C1
-                              |RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_TIM2
-                              |RCC_PERIPHCLK_TIM34;
+                              |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_RTC
+                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
@@ -377,6 +374,9 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  /** Enables the Clock Security System
+  */
+  HAL_RCC_EnableCSS();
 }
 
 /**
@@ -747,41 +747,6 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
-  * @brief USART3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 38400;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART3_Init 2 */
-
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -791,55 +756,66 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|NSS_1_Pin
-                          |LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
+                          |LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|Relay_Drogue_1_Pin|Relay_Drogue_2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Relay_Drogue_1_Pin|Relay_Drogue_2_Pin|NSS_1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|NRESET_1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin NSS_1_Pin
-                           LED1_Pin */
-  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|NSS_1_Pin
-                          |LED1_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(NRESET_1_GPIO_Port, NRESET_1_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin LED3_Pin
+                           LED2_Pin LED1_Pin */
+  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
+                          |LED2_Pin|LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Button_Pin DIO1_1_Pin */
-  GPIO_InitStruct.Pin = Button_Pin|DIO1_1_Pin;
+  /*Configure GPIO pin : Button_Pin */
+  GPIO_InitStruct.Pin = Button_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(Button_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD2_Pin Relay_Drogue_1_Pin Relay_Drogue_2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|Relay_Drogue_1_Pin|Relay_Drogue_2_Pin;
+  /*Configure GPIO pins : Relay_Drogue_1_Pin Relay_Drogue_2_Pin NSS_1_Pin */
+  GPIO_InitStruct.Pin = Relay_Drogue_1_Pin|Relay_Drogue_2_Pin|NSS_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SD_CS_Pin NRESET_1_Pin */
-  GPIO_InitStruct.Pin = SD_CS_Pin|NRESET_1_Pin;
+  /*Configure GPIO pin : SD_CS_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : BUSY_1_Pin */
-  GPIO_InitStruct.Pin = BUSY_1_Pin;
+  /*Configure GPIO pin : NRESET_1_Pin */
+  GPIO_InitStruct.Pin = NRESET_1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(NRESET_1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BUSY_1_Pin DIO1_1_Pin */
+  GPIO_InitStruct.Pin = BUSY_1_Pin|DIO1_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(BUSY_1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -873,7 +849,7 @@ FRESULT sd_init(void) {
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
 		sprintf((char *)msg, "SD f_mount failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 
@@ -901,7 +877,7 @@ FRESULT sd_init(void) {
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
 		sprintf((char *)msg, "SD file open failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 	    return fres;
@@ -916,13 +892,13 @@ FRESULT sd_init(void) {
 	if(fres == FR_OK) {
 #ifdef DEBUG_MODE
 		printf((char *)msg, "SD header write successful, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 	} else {
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 #ifdef DEBUG_MODE
 		sprintf((char *)msg, "SD header write failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		return fres;
 	}
@@ -939,7 +915,7 @@ FRESULT sd_save() {
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
 		printf((char *)msg, "SD data write failed, fres = %i, bytes written = %d\n\n", fres, bytesWrote);
-		HAL_UART_Transmit(&huart3, msg, strlen((char const *)msg), 1000);
+		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 	}
@@ -994,7 +970,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 #endif
 
 #ifdef DEBUG_MODE
-				HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
+				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 				currTask = 0;
 				break;
@@ -1009,20 +985,20 @@ void transmitBuffer(char buffer[]){
 	while(buffer[length] != 0){
 		length++;
 	}
-	HAL_UART_Transmit(&huart3, (uint8_t*)buffer, length, 100);
+	HAL_UART_Transmit(&huart1, (uint8_t*)buffer, length, 100);
 }
 
 void transmitStatus(HAL_StatusTypeDef status){
 	if(status == HAL_OK){
-		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_OK\n", 15, 100);
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_OK\n", 15, 100);
 	} else if(status == HAL_ERROR){
-		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
 	} else if(status == HAL_BUSY){
-		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
 	} else if(status == HAL_TIMEOUT){
-		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
 	} else {
-		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
 	}
 }
 
@@ -1046,6 +1022,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
   __BKPT();
   /* USER CODE END Error_Handler_Debug */
 }
