@@ -82,13 +82,14 @@ void Error_Handler(void);
 #define Relay_Main_2_GPIO_Port GPIOC
 #define SD_CS_Pin GPIO_PIN_12
 #define SD_CS_GPIO_Port GPIOB
-#define SD_SPI_HANDLE hspi2
 #define LED3_Pin GPIO_PIN_6
 #define LED3_GPIO_Port GPIOC
 #define LED2_Pin GPIO_PIN_7
 #define LED2_GPIO_Port GPIOC
 #define LED1_Pin GPIO_PIN_8
 #define LED1_GPIO_Port GPIOC
+#define NSS_1_Pin GPIO_PIN_15
+#define NSS_1_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */
 
 #define		TX_BUF_DIM				1000
@@ -105,6 +106,8 @@ void Error_Handler(void);
 #define		BUZZER_FREQ			3750		// Hz (Buzzer sound frequency)
 #define		NUM_MEAS_AVGING		100			// (Number of historic measurements for averaging)
 #define		ALT_MEAS_AVGING		500
+
+#define		SD_SPI_HANDLE		hspi2
 
 extern float alt_meas;
 extern float alt_ground;
