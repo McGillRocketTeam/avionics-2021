@@ -275,6 +275,12 @@ int main(void)
       HAL_Delay(1000);
 #endif
 
+  // TODO: Remove this
+  while(1){
+	  TxProtocol(buffer_sent, 5);
+	  HAL_Delay(1000);
+  }
+
   // Start timer
   HAL_TIM_Base_Start_IT(&htim2);
 
