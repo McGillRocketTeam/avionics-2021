@@ -62,7 +62,7 @@
 // ---------- COMMENT THESE OUT AS NEEDED ---------- //
 #define		DEBUG_MODE
 //#define		CONFIG_TIME
-//#define		TRANSMIT_RADIO
+#define		TRANSMIT_RADIO
 // ------------------------------------------------- //
 
 /* USER CODE END PD */
@@ -144,6 +144,9 @@ FATFS FatFs; 	//Fatfs handle, may need to be static
 FIL fil; 		//File handle
 FRESULT fres; 	//Result after operations
 
+// TODO: REMOVE
+uint8_t buffer_sent[] = {10,11,12,13,14};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -181,6 +184,11 @@ FRESULT sd_init();
 
 // Save data to sd card
 FRESULT sd_save();
+
+// RnD Radio
+void transmitBuffer(char buffer[]);
+void transmitStatus(HAL_StatusTypeDef status);
+void transmitIRQ(sx126x_irq_mask_t irq);
 
 /* USER CODE END PFP */
 
@@ -250,6 +258,16 @@ int main(void)
 
   // Initialize SD card and open file to begin writing
   fres = sd_init();
+
+  // Initialize connection with RnD radio
+  set_hspi(hspi3);
+  set_NSS_pin(NSS_1_GPIO_Port, NSS_1_Pin);
+  set_BUSY_pin(BUSY_1_GPIO_Port, BUSY_1_Pin);
+  set_NRESET_pin(NRESET_1_GPIO_Port, NRESET_1_Pin);
+  set_DIO1_pin(DIO1_1_GPIO_Port, DIO1_1_Pin);
+//  set_DIO2_pin(DIO2_1_GPIO_Port, DIO2_1_Pin);
+//  set_DIO3_pin(DIO3_1_GPIO_Port, DIO3_1_Pin);
+  Tx_setup();
 
 #ifdef DEBUG_MODE
       sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS AND SD CARD ----------\n");
@@ -376,11 +394,12 @@ int main(void)
 	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
 			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
 
-#ifndef DEBUG_MODE
+#ifdef TRANSMIT_RADIO
 	// Transmit via radio
-	// TODO: Replace with RnD radio
-	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
-#else
+	TxProtocol(buffer_sent, 5);
+#endif
+
+#ifdef DEBUG_MODE
 	HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 
@@ -867,10 +886,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|LED1_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|NSS_1_Pin
+                          |LED1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LD2_Pin|Relay_Drogue_1_Pin|Relay_Drogue_2_Pin, GPIO_PIN_RESET);
@@ -878,18 +897,17 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|NRESET_1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(NSS_1_GPIO_Port, NSS_1_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : LED_Status_Pin LED1_Pin Relay_Main_1_Pin Relay_Main_2_Pin */
-  GPIO_InitStruct.Pin = LED_Status_Pin|LED1_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin;
+  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin NSS_1_Pin
+                           LED1_Pin */
+  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|NSS_1_Pin
+                          |LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Button_Pin DIO3_1_Pin DIO2_1_Pin DIO1_1_Pin */
-  GPIO_InitStruct.Pin = Button_Pin|DIO3_1_Pin|DIO2_1_Pin|DIO1_1_Pin;
+  /*Configure GPIO pins : Button_Pin DIO1_1_Pin */
+  GPIO_InitStruct.Pin = Button_Pin|DIO1_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -907,13 +925,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : NSS_1_Pin */
-  GPIO_InitStruct.Pin = NSS_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(NSS_1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : BUSY_1_Pin */
   GPIO_InitStruct.Pin = BUSY_1_Pin;
@@ -1069,9 +1080,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			default:
 				// Transmit to radio
-#ifndef DEBUG_MODE
-				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer ), 1000);
-#else
+#ifdef TRANSMIT_RADIO
+				TxProtocol(buffer_sent, 5);
+#endif
+
+#ifdef DEBUG_MODE
 				HAL_UART_Transmit(&huart3, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 				currTask = 0;
@@ -1079,6 +1092,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		}
 	}
 }
+
+
+// TODO: Move this too
+void transmitBuffer(char buffer[]){
+	uint8_t length = 0;
+	while(buffer[length] != 0){
+		length++;
+	}
+	HAL_UART_Transmit(&huart3, (uint8_t*)buffer, length, 100);
+}
+
+void transmitStatus(HAL_StatusTypeDef status){
+	if(status == HAL_OK){
+		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_OK\n", 15, 100);
+	} else if(status == HAL_ERROR){
+		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
+	} else if(status == HAL_BUSY){
+		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
+	} else if(status == HAL_TIMEOUT){
+		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
+	} else {
+		HAL_UART_Transmit(&huart3, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
+	}
+}
+
+void transmitIRQ(sx126x_irq_mask_t irq){
+	if(irq == SX126X_IRQ_TX_DONE){
+		transmitBuffer("Tx Done\n");
+	} else {
+		transmitBuffer("Big Sad\n");
+	}
+}
+
 
 /* USER CODE END 4 */
 

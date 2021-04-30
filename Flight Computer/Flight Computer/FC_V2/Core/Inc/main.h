@@ -62,8 +62,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Status_Pin GPIO_PIN_14
 #define LED_Status_GPIO_Port GPIOC
-#define LED1_Pin GPIO_PIN_2
-#define LED1_GPIO_Port GPIOC
 #define Button_Pin GPIO_PIN_3
 #define Button_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
@@ -84,14 +82,12 @@ void Error_Handler(void);
 #define Relay_Main_2_GPIO_Port GPIOC
 #define SD_CS_Pin GPIO_PIN_12
 #define SD_CS_GPIO_Port GPIOB
-#define DIO3_1_Pin GPIO_PIN_6
-#define DIO3_1_GPIO_Port GPIOC
-#define DIO2_1_Pin GPIO_PIN_7
-#define DIO2_1_GPIO_Port GPIOC
-#define DIO1_1_Pin GPIO_PIN_8
+#define DIO1_1_Pin GPIO_PIN_6
 #define DIO1_1_GPIO_Port GPIOC
-#define NSS_1_Pin GPIO_PIN_2
-#define NSS_1_GPIO_Port GPIOD
+#define NSS_1_Pin GPIO_PIN_7
+#define NSS_1_GPIO_Port GPIOC
+#define LED1_Pin GPIO_PIN_8
+#define LED1_GPIO_Port GPIOC
 #define BUSY_1_Pin GPIO_PIN_4
 #define BUSY_1_GPIO_Port GPIOB
 #define NRESET_1_Pin GPIO_PIN_5
