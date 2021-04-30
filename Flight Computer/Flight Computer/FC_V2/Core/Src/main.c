@@ -305,7 +305,7 @@ int main(void)
 
 #ifdef TRANSMIT_RADIO
 	// Transmit via radio
-	TxProtocol(buffer_sent, 5);
+	TxProtocol(tx_buffer, strlen((char const *)tx_buffer));
 #endif
 
 #ifdef DEBUG_MODE
