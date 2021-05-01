@@ -8,10 +8,10 @@
 #include <utility/imumaths.h>
 #include "SparkFun_Ublox_Arduino_Library.h"
 #include "RTClib.h"
-#include <IridiumSBD.h>
+//#include <IridiumSBD.h>
 
 
-#define IridiumSerial Serial2
+//#define IridiumSerial Serial2
 #define MICROSD_CS 9  // MicroSD card read CS
 #define SX1262_CS 10  // SX1262 CS
 #define RESET 16      //SX1262 Reset line

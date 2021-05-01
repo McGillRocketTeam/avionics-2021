@@ -19,7 +19,7 @@ File myFile;
  */
 String incomingByte = "b";
 boolean isInitialized = false;
-int duration = 500;
+int duration = 1000;
 float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
 long longitude, latitude;
 byte hour, minutes, sec;
@@ -82,11 +82,11 @@ void loop() {
 
   //Setting polling frequency
   if (incomingByte == "y") { //pitch roll yaw
-    fileName = "pitch_roll_yaw.txt";
+    sprintf(fileName, "piroyaw.txt");
   } else if (incomingByte == "a") { //accel_x,y,z
-    fileName = "accelerations.txt";
+    sprintf(fileName, "acc_xyz.txt");
   } else if (incomingByte == "g") { //gps 
-    fileName = "gps.txt";
+    sprintf(fileName, "gps_neo.txt");
   } 
   
   if (isInitialized) {

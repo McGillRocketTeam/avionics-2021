@@ -38,89 +38,34 @@ uint16_t preamble_length = 12;
 uint8_t tx_address = 0x00;
 uint8_t rx_address = 0x00;
 
-char init_buffer[150] = {0};
+char init_buffer[97];
 uint16_t irq;
 uint8_t device_status;
-uint8_t data_length = 0;
+uint8_t data_length = 97;
 uint8_t *send_data;
 
-float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
-int latitude, longitude;
+char RTC_err[] = "Couldn't find RTC";
+char BNO_err[] = "BNO055 initialization failed!";
+char BMP_err[] = "BMP280 initialization failed!";
+char GPS_err[] = "GPS initialization failed!";
+char SD_err[] = "microSD reader initialization failed!";
+char SD_full_err[] = "microSD card full!";
 
+boolean isInitialized = false;
+int duration = 500;
+float temp, pressure, real_altitude, accel_x, accel_y, accel_z, pitch, roll, yaw;
+long latitude, longitude;
+byte hour, minutes, sec;
 imu::Vector<3> accel_euler;
 imu::Vector<3> euler;
 int seaLevelhPa = 102540;
 int i = 0;
 int err;
+uint8_t runNum = 0;
+char fileName[11];
+char errorMess[35];
 
-void initialize() {
-  // Check BMP
-  if (!bmp.begin()) {
-    Serial.println(F("BMP280 initialization failed!"));
-    while (1);
-  }
-  
-  // Check BNO
-  if (!bno.begin())
-  {
-    Serial.print("BNO055 initialization failed!");
-    while (1);
-  }
 
-  // Check GPS
-  if (myGPS.begin() == false) //Connect to the Ublox module using Wire port
-  {
-    Serial.println(F("GPS initialization failed!"));
-    while (1);
-  }
-
-  // Check SD Card
-  pinMode(MICROSD_CS, OUTPUT);
-  digitalWrite(MICROSD_CS, HIGH); // Unselect SD Card
-  if (!SD.begin(9)) {
-    Serial.println("SD card initialization failed!");
-    return;
-  }
-
-  // Check RTC
-  if (! rtc.begin()) {
-    Serial.println("Couldn't find RTC");
-    while (1);
-  }
-  // Remove file if exists
-  if (SD.exists("example.txt")) {
-     SD.remove("example.txt");
-  }
-  // Create file
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.close();
-
-  char header[] = "Temperature;Pressure;Altitude(BMP,m);Pitch;Roll;Yaw;AccelX;AccelY;AccelZ;Latitude;Longitude;Time";
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.println(header);
-  myFile.close();
-
-  if (! rtc.initialized()) {
-    Serial.println("RTC is NOT running!");
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  }
-
-  bno.setExtCrystalUse(true);
-  /* Default settings from datasheet. */
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
-
-  myGPS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-  myGPS.saveConfiguration(); //Save the current settings to flash and BBR
-  
-}
 
 void setup() {
   device.begin(SX1262_CS,BUSY,RESET,DIO1,ANT_SW); // Store pin ports for SX1262 class
@@ -130,6 +75,29 @@ void setup() {
   
   Serial.println("Nose Cone Telemetry test");
     
+  initialize();
+
+   // SD INITIALIZATION ================================================
+  pinMode(10, OUTPUT);
+  while(!SD.begin(MICROSD_CS)){
+    Serial.println(SD_err);
+  }
+  //looks for free file from 0 to 255, if it reached 255 it will loop back to 0
+  sprintf(fileName, "run_%03u.txt", runNum);
+  while (SD.exists(fileName)) {
+    sprintf(fileName, "run_%03d.txt", ++runNum);
+    
+    //a full loop has been done
+    if (runNum == 0) {
+      Serial.println(SD_full_err);
+      break;
+    }
+  }
+  Serial.print(fileName);
+
+  myFile =SD.open(fileName, FILE_WRITE);
+  myFile.print("");
+  myFile.close();
   
   command_status = device.setStandBy(0); // Set device in standby mode, STDBY_RC
   if (command_status != COMMAND_SUCCESS) {
@@ -214,6 +182,57 @@ void setup() {
   Serial.println("Setup Complete");
 }
 
+
+
+
+
+void loop() {
+  //======= BNO =========================================================================
+  accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  accel_x = accel_euler.x();
+  accel_y = accel_euler.y();
+  accel_z = accel_euler.z();
+
+  euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  pitch = euler.y();
+  roll = euler.z();
+  yaw = euler.x();
+
+  //======= BMP =========================================================================
+  temp = bmp.readTemperature();
+  pressure = bmp.readPressure();  
+  real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
+
+  //======= NEO =========================================================================
+  latitude = myGPS.getLatitude();
+  longitude = myGPS.getLongitude();
+
+  //======= RTC =========================================================================
+  now = rtc.now();
+  hour = now.hour();
+  minutes = now.minute();
+  sec = now.second();
+
+  // Get the IMEI
+//  char IMEI[16];
+//  err = modem.getIMEI(IMEI, sizeof(IMEI));
+//  if (err != ISBD_SUCCESS)
+//  {
+//     Serial.print(F("getIMEI failed: error "));
+//     Serial.println(err);
+//     return;
+//  }
+
+  snprintf(init_buffer, sizeof(init_buffer), "s%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
+              pitch, roll, yaw, accel_x, accel_y, accel_z, pressure, real_altitude, latitude, longitude, hour, minutes, sec);
+
+  sendAndWrite(init_buffer);
+  
+  
+  delay(200);
+
+}
+
 void sx1262_setup() {
   command_status = device.setStandBy(0); // Set device in standby mode, STDBY_RC
   if (command_status != COMMAND_SUCCESS) {
@@ -256,48 +275,15 @@ void sx1262_setup() {
   }
 }
 
-void loop() {
-  accel_euler = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  accel_x = accel_euler.x();
-  accel_y = accel_euler.y();
-  accel_z = accel_euler.z();
-
-  euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-  pitch = euler.y();
-  roll = euler.z();
-  yaw = euler.x();
-
-  temp = bmp.readTemperature();
-  pressure = bmp.readPressure();
-
-  real_altitude = 44330 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
-
-  latitude = myGPS.getLatitude();
-
-  longitude = myGPS.getLongitude();
-
-  // Get the IMEI
-//  char IMEI[16];
-//  err = modem.getIMEI(IMEI, sizeof(IMEI));
-//  if (err != ISBD_SUCCESS)
-//  {
-//     Serial.print(F("getIMEI failed: error "));
-//     Serial.println(err);
-//     return;
-//  }
-  
-  now = rtc.now();
-
-  data_length = snprintf(init_buffer, sizeof(init_buffer), "%f;%f;%f;%f;%f;%f;%f;%d;%d;%d:%d:%d", real_altitude,pitch,roll,yaw,accel_x,accel_y,accel_z,
-                                                                                            latitude,longitude,now.hour(),now.minute(),now.second());
-  data_length++;
-  data_length++;
-  Serial.println("Data Length");
-  Serial.println(data_length);
-  
-  myFile = SD.open("example.txt", FILE_WRITE);
-  myFile.println(init_buffer);
-  myFile.close();
+void sendAndWrite(char* string) {
+    // Checks if the SD card is well connected to not corrupt the data
+  if (SD.exists(fileName)) {
+    myFile = SD.open(fileName, FILE_WRITE);
+    myFile.println(string);
+    myFile.close();
+  } else {
+    Serial.print("SD card is not well connected");
+  }
 
   send_data = (uint8_t*)malloc(data_length);
   memcpy(send_data, init_buffer, data_length);
@@ -344,6 +330,39 @@ void loop() {
   sx1262_setup();
   
   free(send_data);
-  delay(200);
+}
 
+void initialize() {
+  // RTC INITIALIZATION ==============================================
+  while (! rtc.begin()) {
+    Serial.println(RTC_err);
+  }
+
+  // BNO INITIALIZATION ===============================================
+  while (!bno.begin()) {
+    Serial.println(BNO_err);
+  }  
+  bno.setExtCrystalUse(true);
+
+  // BMP INITIALIZATION ===============================================
+  while (!bmp.begin()) {
+    Serial.println(BMP_err);
+  }  
+  /* Default settings from datasheet. */
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+  // NEO INITIALIZATION ===============================================
+  while (!myGPS.begin()){ //Connect to the Ublox module using Wire port
+    Serial.println(GPS_err);
+  }  
+  myGPS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
+  myGPS.saveConfiguration(); //Save the current settings to flash and BBR
+
+  // MANUALLY SETTING INCOMINGBYTE ====================================
+  isInitialized = true;
+  
 }
