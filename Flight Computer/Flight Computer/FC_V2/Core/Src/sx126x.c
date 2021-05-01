@@ -533,7 +533,7 @@ void TxProtocol(uint8_t data[], uint8_t data_length){
 	lora_params->invert_iq_is_on=0;
 	command_status = sx126x_set_lora_pkt_params(&hspi, lora_params);
 	free(lora_params);
-	command_status = sx126x_set_tx(&hspi, 1000);
+	command_status = sx126x_set_tx(&hspi, 6000);
 	HAL_Delay(1400);
 
 	if (command_status != HAL_OK) {
