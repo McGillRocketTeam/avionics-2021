@@ -60,7 +60,7 @@ void GPS_Poll(float *latitude, float *longitude, float *time)
 	int done = 0;
 	while(loop_count < max_loop_count && !done){
 		HAL_UART_Receive(GPS_USART, (uint8_t*)&rx_current, 1, 100);
-		//HAL_UART_Transmit(&huart3, (uint8_t*)&rx_current, 1, 100);
+		//HAL_UART_Transmit(&huart1, (uint8_t*)&rx_current, 1, 100);
 		if (rx_current != '\n' && rx_index < sizeof(rx_buffer)) {
 			rx_buffer[rx_index++] = rx_current;
 		} else {

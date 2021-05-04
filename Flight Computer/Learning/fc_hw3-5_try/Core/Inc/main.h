@@ -50,8 +50,6 @@ extern "C" {
 
 /* USER CODE END EM */
 
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
-
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -64,61 +62,13 @@ void Error_Handler(void);
 #define LED_Status_GPIO_Port GPIOC
 #define Button_Pin GPIO_PIN_3
 #define Button_GPIO_Port GPIOC
-#define USART2_TX_Pin GPIO_PIN_2
-#define USART2_TX_GPIO_Port GPIOA
-#define USART2_RX_Pin GPIO_PIN_3
-#define USART2_RX_GPIO_Port GPIOA
-#define Buzzer_Pin GPIO_PIN_4
-#define Buzzer_GPIO_Port GPIOA
-#define Relay_Drogue_1_Pin GPIO_PIN_6
-#define Relay_Drogue_1_GPIO_Port GPIOA
-#define Relay_Drogue_2_Pin GPIO_PIN_7
-#define Relay_Drogue_2_GPIO_Port GPIOA
-#define Relay_Main_1_Pin GPIO_PIN_4
-#define Relay_Main_1_GPIO_Port GPIOC
-#define Relay_Main_2_Pin GPIO_PIN_5
-#define Relay_Main_2_GPIO_Port GPIOC
-#define SD_CS_Pin GPIO_PIN_12
-#define SD_CS_GPIO_Port GPIOB
-#define LED3_Pin GPIO_PIN_6
-#define LED3_GPIO_Port GPIOC
-#define LED2_Pin GPIO_PIN_7
-#define LED2_GPIO_Port GPIOC
+#define USART_TX_Pin GPIO_PIN_2
+#define USART_TX_GPIO_Port GPIOA
+#define USART_RX_Pin GPIO_PIN_3
+#define USART_RX_GPIO_Port GPIOA
 #define LED1_Pin GPIO_PIN_8
 #define LED1_GPIO_Port GPIOC
-#define NSS_1_Pin GPIO_PIN_15
-#define NSS_1_GPIO_Port GPIOA
-#define NRESET_1_Pin GPIO_PIN_2
-#define NRESET_1_GPIO_Port GPIOD
-#define BUSY_1_Pin GPIO_PIN_4
-#define BUSY_1_GPIO_Port GPIOB
-#define DIO1_1_Pin GPIO_PIN_5
-#define DIO1_1_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
-#define		TX_BUF_DIM				1000
-#define		LOCAL_PRESSURE			1012		// hPa (Sea level)
-#define		MAIN_DEPLOYMENT			1500		// ft
-#define		THRESHOLD_ALTITUDE		10000		// ft
-#define		DROGUE_DELAY			500			// ms (Time that drogue is HIGH)
-#define		MAIN_DELAY				500			// ms (Time that main is HIGH)
-#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1 (idk why 1 but there it is)
-#define		LANDING_THRESHOLD		1			// Change in altitude to detect landing
-#define		DROGUE_DEPLOYMENT_VEL	10
-
-// Configurations
-#define		BUZZER_FREQ			3750		// Hz (Buzzer sound frequency)
-#define		NUM_MEAS_AVGING		100			// (Number of historic measurements for averaging)
-#define		ALT_MEAS_AVGING		500
-
-#define		SD_SPI_HANDLE		hspi2
-
-extern float alt_meas;
-extern float alt_ground;
-
-extern I2C_HandleTypeDef hi2c1;
-extern UART_HandleTypeDef huart1;
-extern UART_HandleTypeDef huart2;
 
 /* USER CODE END Private defines */
 
