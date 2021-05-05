@@ -503,7 +503,7 @@ void Tx_setup(){
 
 }
 
-void TxProtocol(uint8_t data[], uint8_t data_length){
+sx126x_irq_mask_t radio_tx_1(uint8_t data[], uint8_t data_length){
 
 	uint8_t type;
 	sx126x_get_pkt_type(&hspi, &type);
@@ -534,19 +534,24 @@ void TxProtocol(uint8_t data[], uint8_t data_length){
 	command_status = sx126x_set_lora_pkt_params(&hspi, lora_params);
 	free(lora_params);
 	command_status = sx126x_set_tx(&hspi, 6000);
-	HAL_Delay(1400);
 
-	if (command_status != HAL_OK) {
-		transmitBuffer("setTx Failed\n");
-		transmitBuffer("Set TX command status: ");
-		transmitStatus(command_status);
+	return irq;
+}
 
-		sx126x_chip_status_t device_status;
-		command_status = sx126x_get_status(&hspi, &device_status);
+//	HAL_Delay(1400);
 
-		transmitBuffer("Get Status command status: ");
-		transmitStatus(command_status);
-	}
+void radio_tx_2(sx126x_irq_mask_t irq){
+//	if (command_status != HAL_OK) {
+//		transmitBuffer("setTx Failed\n");
+//		transmitBuffer("Set TX command status: ");
+//		transmitStatus(command_status);
+//
+//		sx126x_chip_status_t device_status;
+//		command_status = sx126x_get_status(&hspi, &device_status);
+//
+//		transmitBuffer("Get Status command status: ");
+//		transmitStatus(command_status);
+//	}
 
 	//get irq status
 	uint8_t opcode3 = 0x12;
@@ -567,7 +572,7 @@ void TxProtocol(uint8_t data[], uint8_t data_length){
 
 	//setup();
 
-	HAL_Delay(200);
+//	HAL_Delay(200);
 }
 
 void Rx_setup(){
@@ -748,6 +753,38 @@ void RxProtocol(uint8_t buffer_received[]){
 
 	HAL_Delay(200);
 }
+
+
+void transmitBuffer(char buffer[]){
+	uint8_t length = 0;
+	while(buffer[length] != 0){
+		length++;
+	}
+	HAL_UART_Transmit(&huart1, (uint8_t*)buffer, length, 100);
+}
+
+void transmitStatus(HAL_StatusTypeDef status){
+	if(status == HAL_OK){
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_OK\n", 15, 100);
+	} else if(status == HAL_ERROR){
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
+	} else if(status == HAL_BUSY){
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
+	} else if(status == HAL_TIMEOUT){
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
+	} else {
+		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
+	}
+}
+
+void transmitIRQ(sx126x_irq_mask_t irq){
+	if(irq == SX126X_IRQ_TX_DONE){
+		transmitBuffer("Tx Done\n");
+	} else {
+		transmitBuffer("Big Sad\n");
+	}
+}
+
 
 sx126x_status_t sx126x_set_sleep( const void* context, const sx126x_sleep_cfgs_t cfg )
 {

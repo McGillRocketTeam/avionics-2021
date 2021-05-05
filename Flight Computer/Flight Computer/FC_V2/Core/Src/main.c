@@ -121,6 +121,9 @@ stmdev_ctx_t dev_ctx_lsm;
 stmdev_ctx_t dev_ctx_lps;
 uint16_t transmit_delay_time = 1000;	// After landing, transmit every second (change this)
 
+// Radio Variables
+sx126x_irq_mask_t irq_radio;
+
 // Variables to store converted sensor data
 float acceleration[] = {0, 0, 0};
 float angular_rate[]= {0, 0, 0};
@@ -304,7 +307,9 @@ int main(void)
 
 #ifdef TRANSMIT_RADIO
 	// Transmit via radio
-	TxProtocol(tx_buffer, strlen((char const *)tx_buffer));
+	irq_radio = radio_tx_1(tx_buffer, strlen((char const *)tx_buffer));
+	HAL_Delay(1400);
+	radio_tx_2(irq_radio);
 #endif
 
 #ifdef DEBUG_MODE
@@ -958,7 +963,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			default:
 				// Transmit to radio
 #ifdef TRANSMIT_RADIO
-				TxProtocol(buffer_sent, 5);
+//				TxProtocol(buffer_sent, 5);
 #endif
 
 #ifdef DEBUG_MODE
@@ -967,38 +972,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				currTask = 0;
 				break;
 		}
-	}
-}
-
-
-// TODO: Move this too
-void transmitBuffer(char buffer[]){
-	uint8_t length = 0;
-	while(buffer[length] != 0){
-		length++;
-	}
-	HAL_UART_Transmit(&huart1, (uint8_t*)buffer, length, 100);
-}
-
-void transmitStatus(HAL_StatusTypeDef status){
-	if(status == HAL_OK){
-		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_OK\n", 15, 100);
-	} else if(status == HAL_ERROR){
-		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_ERROR\n", 18, 100);
-	} else if(status == HAL_BUSY){
-		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_BUSY\n", 17, 100);
-	} else if(status == HAL_TIMEOUT){
-		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: HAL_TIMEOUT\n", 20, 100);
-	} else {
-		HAL_UART_Transmit(&huart1, (uint8_t*)"Status: Unknown status Received\n", 32, 100);
-	}
-}
-
-void transmitIRQ(sx126x_irq_mask_t irq){
-	if(irq == SX126X_IRQ_TX_DONE){
-		transmitBuffer("Tx Done\n");
-	} else {
-		transmitBuffer("Big Sad\n");
 	}
 }
 

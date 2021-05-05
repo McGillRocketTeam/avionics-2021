@@ -1601,6 +1601,11 @@ sx126x_status_t sx126x_set_ocp_value( const void* context, const uint8_t ocp_in_
 sx126x_status_t sx126x_set_trimming_capacitor_values( const void* context, const uint8_t trimming_cap_xta,
                                                       const uint8_t trimming_cap_xtb );
 
+
+// Custom functions
+sx126x_irq_mask_t radio_tx_1(uint8_t data[], uint8_t data_length);
+void radio_tx_2(sx126x_irq_mask_t irq);
+
 #ifdef __cplusplus
 }
 #endif
