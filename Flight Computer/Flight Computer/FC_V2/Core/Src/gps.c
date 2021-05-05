@@ -55,7 +55,7 @@ void GPS_print(char *data){
 
 void GPS_Poll(float *latitude, float *longitude, float *time)
 {
-	uint16_t max_loop_count = 100;
+	uint16_t max_loop_count = 200;
 	uint16_t loop_count = 0;
 	int done = 0;
 	while(loop_count < max_loop_count && !done){

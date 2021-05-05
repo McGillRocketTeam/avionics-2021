@@ -251,12 +251,17 @@ int main(void)
   dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
 
-  // Get initial sensor values
+  // Get initial sensor values + first string formatting
+  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
   get_pressure(dev_ctx_lps, &pressure);
   get_temperature(dev_ctx_lps,  &temperature);
   get_acceleration(dev_ctx_lsm, acceleration);
   get_angvelocity(dev_ctx_lsm, angular_rate);
   GPS_Poll(&latitude, &longitude, &time);
+  sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
+  			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+
 
   // Initialize SD card and open file to begin writing
   fres = sd_init();
@@ -272,7 +277,7 @@ int main(void)
   Tx_setup();
 
 #ifdef DEBUG_MODE
-      sprintf((char *)msg, "---------- INITIALIZED ALL SENSORS AND SD CARD ----------\n");
+      sprintf((char *)msg, "---------- INITIALIZED ALL COMPONENTS, STARTING EJECTION ----------\n");
       HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
       HAL_Delay(1000);
 #endif
@@ -284,6 +289,11 @@ int main(void)
   HAL_Delay(5000);		// Turning off buzzer in debug mode because it really b annoying
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
+
+  // Start timer
+  HAL_TIM_Base_Start_IT(&htim2);
+
+  while(1); //TODO: Remove this;
 
   /* USER CODE END 2 */
 
@@ -588,9 +598,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 7199;
+  htim2.Init.Prescaler = 799;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
+  htim2.Init.Period = 1999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -924,12 +934,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim == &htim2){
 		switch (currTask){
 			case 0:
+				// Radio transmission (part 1)
+				irq_radio = radio_tx_1(tx_buffer, strlen((char const *)tx_buffer));
+				currTask++;
+				break;
+
+			case 1:
 				// Date/Time
 				HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
 				HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 				currTask++;
 				break;
-			case 1:
+			case 2:
 				// Pressure/Temp
 				if (readingLps != 0){		// Yield to ejection if it has control of the LPS sensor
 					break;
@@ -938,37 +954,37 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				get_temperature(dev_ctx_lps,  &temperature);
 				currTask++;
 				break;
-			case 2:
+			case 3:
 				// Acceleration/Ang Velocity
 				get_acceleration(dev_ctx_lsm, acceleration);
 				get_angvelocity(dev_ctx_lsm, angular_rate);
 				currTask++;
 				break;
-			case 3:
+			case 4:
 				// GPS
 				GPS_Poll(&latitude, &longitude, &time);
 				currTask++;
 				break;
-			case 4:
+			case 5:
 				// Format string
 				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,E\n",
 							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
 				currTask++;
 				break;
-			case 5:
+			case 6:
 				// Save to SD card
 				fres = sd_save();
 				currTask++;
 				break;
-			default:
-				// Transmit to radio
-#ifdef TRANSMIT_RADIO
-//				TxProtocol(buffer_sent, 5);
-#endif
-
+			case 7:
+				// Radio transmission (part 2)
+				radio_tx_2(irq_radio);
 #ifdef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
+				currTask = 0;
+				break;
+			default:
 				currTask = 0;
 				break;
 		}
