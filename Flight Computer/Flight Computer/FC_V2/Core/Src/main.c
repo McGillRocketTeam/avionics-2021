@@ -293,7 +293,86 @@ int main(void)
   // Start timer
   HAL_TIM_Base_Start_IT(&htim2);
 
-  while(1); //TODO: Remove this;
+  // ---------- START OF EJECTION CODE ----------
+  uint32_t altitude = 0;
+  uint32_t alt_filtered = 0;
+
+  // ---------- Get ground-level pressure and set as bias ----------
+  for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
+	  altitude = getAltitude();
+	  alt_ground += altitude;
+  }
+  alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
+
+#ifdef DEBUG_MODE
+  sprintf((char *)msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+#endif
+
+// ---------- Waiting for launch ----------
+// TODO: Replace 150 by the actual value
+  while(alt_filtered < 500){							// Waiting to launch
+	altitude = getAltitude();
+	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+#ifdef DEBUG_MODE
+	sprintf((char *)msg, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
+	HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	HAL_Delay(1000);
+#endif
+  }
+
+// ---------- Launched -> Wait for apogee ----------
+#ifdef DEBUG_MODE
+  sprintf((char *)msg, "---------- LAUNCHED ----------\n");
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+#else
+  // Turning off buzzer in flight mode bc launched and no one gives a shit
+  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+#endif
+
+  while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
+	altitude = getAltitude();
+	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+  }
+
+// ---------- At apogee -> Deploy drogue ----------
+#ifdef DEBUG_MODE
+  sprintf((char *)msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+#endif
+
+  HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_SET);
+  HAL_Delay(DROGUE_DELAY);
+  HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
+
+// ---------- Wait for main deployment altitude ----------
+while (alt_filtered > MAIN_DEPLOYMENT){
+  altitude = getAltitude();
+  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+}
+
+// ---------- At main deployment altitude -> Deploy main ----------
+#ifdef DEBUG_MODE
+  sprintf((char *)msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+#endif
+
+  HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_SET);
+  HAL_Delay(MAIN_DELAY);
+  HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
+
+// ---------- END OF EJECTION CODE ----------
+#ifdef DEBUG_MODE
+  sprintf((char *)msg, "---------- EXITING EJECTION ----------\n");
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+#endif
+
+  // Stop the timer from interrupting and enter while loop
+  HAL_TIM_Base_Stop_IT(&htim2);
 
   /* USER CODE END 2 */
 
@@ -878,7 +957,7 @@ FRESULT sd_init(void) {
 //			(uint16_t) sdatestructureget.Year,  (uint16_t) sdatestructureget.Month, (uint16_t) sdatestructureget.Date,
 //	  	    (uint16_t) stimestructureget.Hours, (uint16_t) stimestructureget.Minutes, (uint16_t) stimestructureget.Seconds);
 //	fres = f_open(&fil, filename, FA_WRITE | FA_CREATE_ALWAYS);
-	fres = f_open(&fil, "write2.txt", FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
+	fres = f_open(&fil, "write1.txt", FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
 
 
 	if (fres != FR_OK) {

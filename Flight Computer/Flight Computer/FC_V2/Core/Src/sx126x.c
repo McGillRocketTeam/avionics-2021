@@ -507,9 +507,9 @@ sx126x_irq_mask_t radio_tx_1(uint8_t data[], uint8_t data_length){
 
 	uint8_t type;
 	sx126x_get_pkt_type(&hspi, &type);
-	char b[100];
-	sprintf(b, "Type: %u\n", type);
-	transmitBuffer(b);
+//	char b[100];
+//	sprintf(b, "Type: %u\n", type);
+//	transmitBuffer(b);
 
 	HAL_StatusTypeDef command_status;
 	sx126x_irq_mask_t irq = SX126X_IRQ_ALL;
@@ -564,15 +564,12 @@ void radio_tx_2(sx126x_irq_mask_t irq){
 		readCommand(opcode3, params3, data3, 3);
 		irq = data3[2] << 8 | data3[1] << 8;
 	}
-	if ((irq & SX126X_IRQ_TIMEOUT)) {
-		transmitBuffer("TIMEOUT!\n");
-	} else {
-		transmitBuffer("TX DONE!\n");
-	}
+//	if ((irq & SX126X_IRQ_TIMEOUT)) {
+//		transmitBuffer("TIMEOUT!\n");
+//	} else {
+//		transmitBuffer("TX DONE!\n");
+//	}
 
-	//setup();
-
-//	HAL_Delay(200);
 }
 
 void Rx_setup(){
