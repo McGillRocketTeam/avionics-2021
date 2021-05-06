@@ -60,6 +60,8 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define ITM_Port32(n) (*(( volatile unsigned long *) (0xE0000000+4*n)))
+
 // ---------- COMMENT THESE OUT AS NEEDED ---------- //
 #define		DEBUG_MODE
 //#define		CONFIG_TIME
@@ -280,7 +282,7 @@ int main(void)
   GPS_Poll(&latitude, &longitude, &time);
 
   // Initialize SD card and open file to begin writing
-  fres = sd_init();
+//  fres = sd_init();
 
   // Initialize connection with RnD radio
   set_hspi(hspi3);
@@ -313,42 +315,73 @@ int main(void)
   while (1)
   {
 
+	ITM_Port32(31) = 1;
+
 	// Get ADC measurements + continuity
-	vsense_input = getVoltage(hadc1);
-	vsense_drogue = getVoltage(hadc3);
-	vsense_main = getVoltage(hadc2);
+	for (int i=0; i<50; i++){
+		vsense_input = getVoltage(hadc1);
+		vsense_drogue = getVoltage(hadc3);
+		vsense_main = getVoltage(hadc2);
+	}
+	ITM_Port32(31) = 2;
 
-	drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
-	drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
-	main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
-	main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
+	for (int i=0; i<100; i++){
+		drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
+		drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
+		main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
+		main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
+	}
+	ITM_Port32(31) = 3;
 
+	for (int i=0; i<100; i++){
+		HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+		HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+	}
+	ITM_Port32(31) = 4;
 
-	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
-	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-	get_pressure(dev_ctx_lps, &pressure);
-	get_temperature(dev_ctx_lps,  &temperature);
-	get_acceleration(dev_ctx_lsm, acceleration);
-	get_angvelocity(dev_ctx_lsm, angular_rate);
-	GPS_Poll(&latitude, &longitude, &time);
+	for (int i=0; i<100; i++){
+		get_pressure(dev_ctx_lps, &pressure);
+		get_temperature(dev_ctx_lps,  &temperature);
+	}
+	ITM_Port32(31) = 5;
+
+	for (int i=0; i<100; i++){
+		get_acceleration(dev_ctx_lsm, acceleration);
+		get_angvelocity(dev_ctx_lsm, angular_rate);
+	}
+	ITM_Port32(31) = 6;
+
+	for (int i=0; i<50; i++){
+		GPS_Poll(&latitude, &longitude, &time);
+	}
+	ITM_Port32(31) = 7;
 
 	// Format:
 	//	S,ACCx,ACCy,ACCz,MAGx,MAGy,MAGz,PRESSURE,LAT,LONG,HOUR,MIN,SEC,SUBSEC,E\n
 	//	S,3.2, 3.2, 3.2, 3.2, 3.2, 3.2, 4.2,    ,3.7,3.7, 2,   2,  2,  2,     E
-	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
-			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+	for (int i=0; i<50; i++){
+		sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
+				acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+	}
+	ITM_Port32(31) = 8;
 
 #ifdef TRANSMIT_RADIO
 	// Transmit via radio
-	TxProtocol(tx_buffer, strlen((char const *)tx_buffer));
+	for (int i=0; i<20; i++){
+		TxProtocol(tx_buffer, strlen((char const *)tx_buffer));
+	}
 #endif
-
+	ITM_Port32(31) = 9;
 #ifdef DEBUG_MODE
-	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
+	for (int i=0; i<50; i++){
+		HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
+    }
 #endif
-
-	fres = sd_save();
-
+	ITM_Port32(31) = 10;
+	for (int i=0; i<50; i++){
+//		fres = sd_save();
+	}
+	ITM_Port32(31) = 11;
 	HAL_Delay(transmit_delay_time);
     /* USER CODE END WHILE */
 
