@@ -78,6 +78,16 @@ void Error_Handler(void);
 #define Relay_Main_1_GPIO_Port GPIOC
 #define Relay_Main_2_Pin GPIO_PIN_5
 #define Relay_Main_2_GPIO_Port GPIOC
+#define Drogue_Continuity_1_Pin GPIO_PIN_0
+#define Drogue_Continuity_1_GPIO_Port GPIOB
+#define Drogue_Sense_1_Pin GPIO_PIN_1
+#define Drogue_Sense_1_GPIO_Port GPIOB
+#define Main_Sense_1_Pin GPIO_PIN_2
+#define Main_Sense_1_GPIO_Port GPIOB
+#define Drogue_Continuity_2_Pin GPIO_PIN_10
+#define Drogue_Continuity_2_GPIO_Port GPIOB
+#define Input_Sense_1_Pin GPIO_PIN_11
+#define Input_Sense_1_GPIO_Port GPIOB
 #define SD_CS_Pin GPIO_PIN_12
 #define SD_CS_GPIO_Port GPIOB
 #define LED3_Pin GPIO_PIN_6
@@ -86,6 +96,10 @@ void Error_Handler(void);
 #define LED2_GPIO_Port GPIOC
 #define LED1_Pin GPIO_PIN_8
 #define LED1_GPIO_Port GPIOC
+#define Main_Continuity_1_Pin GPIO_PIN_9
+#define Main_Continuity_1_GPIO_Port GPIOC
+#define Main_Continuity_2_Pin GPIO_PIN_8
+#define Main_Continuity_2_GPIO_Port GPIOA
 #define NSS_1_Pin GPIO_PIN_15
 #define NSS_1_GPIO_Port GPIOA
 #define NRESET_1_Pin GPIO_PIN_2
