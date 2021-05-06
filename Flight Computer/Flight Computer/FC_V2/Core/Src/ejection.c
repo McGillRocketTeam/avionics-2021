@@ -16,6 +16,9 @@ float vel_previous[NUM_MEAS_AVGING];
 float filterAltitude(float altitude, float time);
 void storeAltitude(float new_altitude, float time);
 
+// cutoff frequency of lowpass filter
+float cutoff = 0.001; // idk what the units are but matlab simulation says this will work
+
 // Public function implementation
 float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
   T = (currTick - prevTick) / 1000;
@@ -31,7 +34,9 @@ float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
 // Low-pass filter - rocket at high speeds pressure fluctuates and affects altitude reading, usually at a high frequency, so low pass filter filters those high freuqency changes out
 // and keeps just the overall, low frequency changes (caused by altitude change)
 float filterAltitude(float altitude, float time){
-  return (1 - time * LPF_A) * alt_previous[NUM_MEAS_AVGING - 1] + LPF_A * time * altitude;
+  float alpha = time / (cutoff + time);
+//  return (1 - time * LPF_A) * alt_previous[NUM_MEAS_AVGING - 1] + LPF_A * time * altitude;
+  return (altitude * alpha + (1 - alpha) * alt_previous[NUM_MEAS_AVGING - 1]);
 }
 
 void storeAltitude(float new_altitude, float time){
