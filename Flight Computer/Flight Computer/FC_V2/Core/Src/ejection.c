@@ -17,7 +17,7 @@ float filterAltitude(float altitude, float time);
 void storeAltitude(float new_altitude, float time);
 
 // cutoff frequency of lowpass filter
-float cutoff = 1; // idk what the units are but matlab simulation says this will work
+float cutoff = 0.001; // idk what the units are but matlab simulation says this will work
 
 // Public function implementation
 float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
