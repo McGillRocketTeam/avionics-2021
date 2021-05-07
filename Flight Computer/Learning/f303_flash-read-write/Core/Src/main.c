@@ -122,7 +122,7 @@ int main(void)
 
   static FLASH_EraseInitTypeDef EraseInitStruct;
       EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
-      EraseInitStruct.PageAddress = address;
+     EraseInitStruct.PageAddress = address;
       EraseInitStruct.NbPages = 1;
       HAL_FLASHEx_Erase(&EraseInitStruct, &reg);
 
@@ -130,9 +130,9 @@ int main(void)
     	  myprintf("Memory is gone yey\n");
       }
 
-  HAL_FLASH_Lock();
+  //HAL_FLASH_Lock();
 
-  HAL_FLASH_Unlock();
+  //HAL_FLASH_Unlock();
 
   if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, number) != HAL_OK){
 	  myprintf("Could not write\n");
