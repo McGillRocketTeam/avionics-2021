@@ -1356,7 +1356,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 6:
 				// Save to SD card
-//				fres = sd_save();
+				if(!FC_Errors[0])
+					sd_save();
 				currTask++;
 				break;
 			case 7:
