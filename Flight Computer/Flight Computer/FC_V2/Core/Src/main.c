@@ -312,6 +312,11 @@ int main(void)
   }
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
 
+  // Reset LED status (now indicating ejection events)
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+
   // Transmit special message to GS
   // TODO: this
 
@@ -384,6 +389,9 @@ int main(void)
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- LAUNCHED ----------\n");
   HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 #else
   // Turning off buzzer in flight mode bc launched and no one gives a shit
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
@@ -398,24 +406,33 @@ int main(void)
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 #endif
 
+  // Deploy drogue
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_SET);
   HAL_Delay(DROGUE_DELAY);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
 
+
+
 // ---------- Wait for main deployment altitude ----------
-while (alt_filtered > MAIN_DEPLOYMENT){
-  altitude = getAltitude();
-  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-}
+  while (alt_filtered > MAIN_DEPLOYMENT){
+    altitude = getAltitude();
+    alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+  }
 
 // ---------- At main deployment altitude -> Deploy main ----------
 #ifdef DEBUG_MODE
   sprintf((char *)msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 #endif
 
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
@@ -466,6 +483,11 @@ while (alt_filtered > MAIN_DEPLOYMENT){
 
 #ifdef DEBUG_MODE
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
+
+	// Toggle pins to indicate landing
+	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 #endif
 
 	if (!FC_Errors[0])
