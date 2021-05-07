@@ -39,6 +39,7 @@ uint8_t rx_address = 0x00;
 
 uint8_t received_data[150] = {0};
 uint8_t last_packet[150] = {0};
+char* received;
 
 uint8_t rssi = 0; // set initial value of non possible rssi value
 float converted_rssi;
@@ -287,11 +288,49 @@ void loop() {
     }
   Serial.println();
   Serial.println("Last Packet Received");
-  Serial.print((char*)last_packet);
+  //Serial.print((char*)last_packet);
+  halfbyteDecode(last_packet, rx_status[0]);
   Serial.println(); 
   
   loop_counter++;
 
 //  sx1262_setup(); 
 //  delay(200);
+}
+
+void halfbyteDecode(uint8_t* buffer, uint8_t size) {
+  Serial.print("Encoded: ");
+  Serial.println((char*)buffer);
+  uint8_t decoded_size = size*2;
+  received = (char*)malloc(decoded_size+1);
+
+  int j = 0;
+  uint8_t second;
+  for(int i=0; i<size; i++) {
+    
+    second = buffer[i];
+    buffer[i] = buffer[i] >> 4;
+    second = (second & 00001111);
+    received[j] = uncompress(buffer[i]);
+    received[j+1] = uncompress(second);
+    j += 2;
+  }
+  received[j]='\0';
+  Serial.print("Decoded: ");
+  Serial.println(received);
+}
+
+char uncompress(uint8_t compressed){
+  if (compressed == 00001100) {
+    return 's';
+  } else if (compressed == 00001101) {
+    return 'e';
+  } else if (compressed == 00001010) {
+    return ';';
+  } else if (compressed == 00001011) {
+    return ':';
+  } else {
+    return (char)(compressed + '0');
+  }
+  
 }
