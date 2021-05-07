@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include "stm32f3xx_hal.h"
 #include "stm32f3xx_hal_flash_ex.h"
 #include "stm32f3xx_hal_flash.h"
 /* USER CODE END Includes */
@@ -110,7 +111,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint32_t number = 12;
-  uint32_t address =  0x0807F800;
+  uint32_t address =  0x0807F800U;
   uint32_t reg = 0;
 
   if(HAL_FLASH_Unlock() != HAL_OK){
@@ -119,14 +120,28 @@ int main(void)
 	  }
   }
 
-  FLASH_PageErase(address);
+  static FLASH_EraseInitTypeDef EraseInitStruct;
+      EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
+      EraseInitStruct.PageAddress = address;
+      EraseInitStruct.NbPages = 1;
+      HAL_FLASHEx_Erase(&EraseInitStruct, &reg);
 
-  //*(__IO uint32_t *) address = number;
-  HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, number);
+      if(reg | 0xFFFFFFFF == 0xFFFFFFFF){
+    	  myprintf("Memory is gone yey\n");
+      }
 
   HAL_FLASH_Lock();
 
-  const volatile uint32_t *readData=(const volatile uint32_t *) address;
+  HAL_FLASH_Unlock();
+
+  if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, address, number) != HAL_OK){
+	  myprintf("Could not write\n");
+  }
+
+  HAL_FLASH_Lock();
+
+
+  const volatile uint32_t *readData = (const volatile uint32_t *) address;
 
   myprintf("すごい%i\n", *readData);
 
