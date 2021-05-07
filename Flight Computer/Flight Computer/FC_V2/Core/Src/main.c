@@ -829,10 +829,10 @@ static void MX_RTC_Init(void)
   RTC_TimeTypeDef stimestructure;
 
   /*##-1- Configure the Date #################################################*/
-  /* Set Date: Tuesday April 8th 2021 */
+  /* Set Date: Thursday May 6th 2021 */
   sdatestructure.Year = 0x21;
-  sdatestructure.Month = RTC_MONTH_APRIL;
-  sdatestructure.Date = 0x08;
+  sdatestructure.Month = RTC_MONTH_MAY;
+  sdatestructure.Date = 0x06;
   sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
 
   if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
@@ -842,11 +842,11 @@ static void MX_RTC_Init(void)
   }
 
   /*##-2- Configure the Time #################################################*/
-  /* Set Time: 01:45:00 */
-  stimestructure.Hours = 0x02;
-  stimestructure.Minutes = 0x47;
+  /* Set Time: 11:00:00 PM */
+  stimestructure.Hours = 0x11;
+  stimestructure.Minutes = 0x00;
   stimestructure.Seconds = 0x00;
-  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
+  stimestructure.TimeFormat = RTC_HOURFORMAT12_PM;
   stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
   stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
 
