@@ -1,3 +1,11 @@
+/*
+ * TODO:
+ * 1. the 's' was changed back from the 'h'
+ * 2. check if the reception was same gibberish
+ * 3. send default 000;000 ... instead
+ * 4. compare the results from the reception 
+ */
+
 #include <Wire.h>
 #include <SD.h>
 #include <SPI.h>
@@ -38,7 +46,7 @@ uint16_t preamble_length = 12;
 uint8_t tx_address = 0x00;
 uint8_t rx_address = 0x00;
 
-char init_buffer[97];
+char init_buffer[101];
 uint16_t irq;
 uint8_t device_status;
 uint8_t *send_data;
@@ -58,15 +66,17 @@ byte hour, minutes, sec;
 imu::Vector<3> accel_euler;
 imu::Vector<3> euler;
 int seaLevelhPa = 102540;
-int i = 0;
-int err;
-uint8_t halflength;
-char* encodedData;
 uint8_t runNum = 0;
 char fileName[11];
 char errorMess[35];
 
-
+//halfbyte converter variables
+uint8_t index_buffer = 0; //index of the unencoded string
+uint8_t len_buffer; //length of the unencoded message
+bool isOdd_buffer; //true if the unencoded message is odd lengthed
+uint8_t index_encoded; //index of the encoded string
+uint8_t halflength; //length of the encoded string
+char* encodedData; //char pointer to the encoded string
 
 void setup() {
   device.begin(SX1262_CS,BUSY,RESET,DIO1,ANT_SW); // Store pin ports for SX1262 class
@@ -223,15 +233,11 @@ void loop() {
 //     Serial.println(err);
 //     return;
 //  }
-  
-  snprintf(init_buffer, sizeof(init_buffer), "h%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
-              pitch, roll, yaw, accel_x, accel_y, accel_z, pressure, real_altitude, latitude, longitude, hour, minutes, sec);
+  snprintf(init_buffer, sizeof(init_buffer), "s%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
+              pitch, roll, yaw, accel_x, accel_y, accel_z, temperature, pressure, real_altitude, latitude, longitude, hour, minutes, sec);
 
-  //Serial.println(init_buffer);
-  halfbyteEncoder(init_buffer);
-  
-  //sendAndWrite(init_buffer);
-  
+  writeSerialandSD(init_buffer);
+  halfbyteEncoder(init_buffer);  
   
   delay(200);
 
@@ -279,8 +285,8 @@ void sx1262_setup() {
   }
 }
 
-void sendAndWrite(char* string, uint8_t data_length) {
-    // Checks if the SD card is well connected to not corrupt the data
+void writeSerialandSD(char* string) {
+  // Checks if the SD card is well connected to not corrupt the data
   if (SD.exists(fileName)) {
     myFile = SD.open(fileName, FILE_WRITE);
     myFile.println(string);
@@ -288,12 +294,15 @@ void sendAndWrite(char* string, uint8_t data_length) {
   } else {
     Serial.print("SD card is not well connected");
   }
+
+  Serial.println(string);
+  Serial.println();
+}
+
+void sendRadio(char* string, uint8_t data_length) {
   
   send_data = (uint8_t*)malloc((int)data_length);
   memcpy(send_data, string, data_length);
-
-  Serial.println((char*)send_data);
-  Serial.println();
 
   device.clearIrqStatus(SX1262_IRQ_TX_DONE | SX1262_IRQ_TIMEOUT); // Clear TX Done and Timeout Flags
   
@@ -372,65 +381,67 @@ void initialize() {
 }
 
 void halfbyteEncoder(char* buffer) {
-  Serial.print("Pre-encoded: ");
-  Serial.println(buffer);
-  //Getting the length of the new string
-  int len = strlen(buffer);
-  Serial.print("length  of buffer: ");
-  Serial.println(strlen(buffer));
-  bool isOdd = false;
-  if(len%2 == 1) {
-    len++;
-    isOdd = true;
-    Serial.println("isodd");
+    
+  //Calculating length of new string
+  len_buffer = strlen(buffer);
+  isOdd_buffer = false;
+  if(len_buffer%2 == 1) { //add 1 to make it even
+    len_buffer++;
+    isOdd_buffer = true; //extra character is added in the encoded string
   }
-  halflength = len/2;
+  halflength = len_buffer/2; //half byte makes it half length
 
   //Malloc the necessary space
-  encodedData = (char*)malloc(halflength);
+  encodedData = (char*)malloc(halflength); //half the number of characters
 
-  uint8_t j = 0;
-  int i = 0; //j is index for encodedData and i is index for buffer
-  
-  //Combine all chars
-  for(i=0; i<len; i+=2) {
+  //Combine two chars at a time into one char 
+  index_encoded = 0;
+  for(index_buffer = 0; index_buffer < len_buffer; index_buffer += 2) { //increased 2 at a time
 
-    compress(buffer[i]);
-    compress(buffer[i+1]);
+    //Get the corresponding char
+    buffer[index_buffer] = compress(buffer[index_buffer]);
+    buffer[index_buffer + 1] = compress(buffer[index_buffer + 1]);
 
-    buffer[i] = buffer[i] << 4;
-    encodedData[j] = buffer[i] | buffer[i+1];
-    j++;
+    //Combining the two
+    buffer[index_buffer] = buffer[index_buffer] << 4; //Shift the first char by 4 to only put it at the beginning
+    encodedData[index_encoded] = buffer[index_buffer] | buffer[index_buffer + 1]; //bitwise or
+    
+    index_encoded++; //incrementing to next character
   }
 
-  if(isOdd) {
-    compress(buffer[i]);
-    buffer[i] = buffer[i] << 4;
-    encodedData[j]= buffer[i] | 00001110;
+  //extra character in case of oddness - add two ending code ('e')
+  if(isOdd_buffer) {
+    buffer[index_buffer] = compress(buffer[index_buffer]); //get the corresponding code of the last char
+    buffer[index_buffer] = buffer[index_buffer] << 4; //shift to the left 
+    encodedData[index_encoded]= buffer[index_buffer] | 00001101; //bitwise or
   }
 
-  Serial.print("Encoded: ");
-  Serial.println(encodedData);
-  Serial.print("strlen: ");
-  Serial.println(j);
-  Serial.print("halflength: ");
-  Serial.println(halflength);
-  Serial.println();
-  sendAndWrite(encodedData, j);
+  //Send encoded data through radio
+  sendRadio(encodedData, index_encoded);
   
   free(encodedData);
 }
 
-void compress(char character) {
+char compress(char character) {
   if (character == 's') {
-    character = '\\' - 'P'; //00001100
+    return(0x0C); //00001100
+    
   } else if (character == 'e') {
-    character = ']' - 'P'; //00001101
+    return(0x0D); //00001101
+    
   } else if (character == ';') {
-    character = 'Z' - 'P'; //00001010
+    return(0x0A); //00001010
+    
   } else if (character == ':') {
-    character = '[' - 'P'; //00001011
+    return(0x0B); //00001011
+    
+  } else if (character == '.') {
+    return(0x0F); //00001111
+    
+  } else if (character == '-') {
+    return(0x0E); //00001110
+    
   } else {
-    character = character - '0';
+    return(character - '0');
   }
 }
