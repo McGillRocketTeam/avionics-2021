@@ -156,10 +156,7 @@ volatile uint8_t currTask = 0;
 // SD card FatFS variables
 FATFS FatFs; 	//Fatfs handle, may need to be static
 FIL fil; 		//File handle
-FRESULT fres; 	//Result after operations
-
-// TODO: REMOVE
-uint8_t buffer_sent[] = {10,11,12,13,14};
+//FRESULT fres; 	//Result after operations
 
 /* USER CODE END PV */
 
@@ -199,10 +196,10 @@ void GPS_Poll(float*, float*, float*);
 uint32_t getAltitude();
 
 // SD initialization with new file and initial write
-FRESULT sd_init();
+void sd_init();
 
 // Save data to sd card
-FRESULT sd_save();
+void sd_save();
 
 // RnD Radio
 void transmitBuffer(char buffer[]);
@@ -268,6 +265,9 @@ int main(void)
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
 
+  // Reset error status --- indicators -> 0:SD, 1:LSM, 2:LPS, 3:Radio, 4:GPS, 5:Any
+  memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
+
   // Initialize sensors
   // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer. Else, do smth)
   dev_ctx_lsm = lsm6dsr_init();
@@ -281,6 +281,10 @@ int main(void)
   get_acceleration(dev_ctx_lsm, acceleration);
   get_angvelocity(dev_ctx_lsm, angular_rate);
   GPS_Poll(&latitude, &longitude, &time);
+  sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
+    			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+
+  // Get initial conditions (continuity, voltage sense)
   vsense_input = getVoltage(hadc1);
   vsense_drogue = getVoltage(hadc3);
   vsense_main = getVoltage(hadc2);
@@ -288,12 +292,9 @@ int main(void)
   drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
   main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
   main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
-  sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
-  			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
-
 
   // Initialize SD card and open file to begin writing
-//  fres = sd_init();
+  sd_init();
 
   // Initialize connection with RnD radio
   set_hspi(hspi3);
@@ -301,14 +302,43 @@ int main(void)
   set_BUSY_pin(BUSY_1_GPIO_Port, BUSY_1_Pin);
   set_NRESET_pin(NRESET_1_GPIO_Port, NRESET_1_Pin);
   set_DIO1_pin(DIO1_1_GPIO_Port, DIO1_1_Pin);
-//  set_DIO2_pin(DIO2_1_GPIO_Port, DIO2_1_Pin);
-//  set_DIO3_pin(DIO3_1_GPIO_Port, DIO3_1_Pin);
   Tx_setup();
 
+  // Stay inside loop until button pressed
+  while (HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
+	  if (FC_Errors[5])
+		  HAL_GPIO_TogglePin(LED_Status_GPIO_Port, LED_Status_Pin);
+	  HAL_Delay(250);
+  }
+  HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+
+  // Transmit special message to GS
+  // TODO: this
+
 #ifdef DEBUG_MODE
-      sprintf((char *)msg, "---------- INITIALIZED ALL COMPONENTS, STARTING EJECTION ----------\n");
-      HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
-      HAL_Delay(1000);
+  if (FC_Errors[5]){
+	  sprintf((char *)msg, "---------- COMPONENTS NOT INITIALIZED: ");
+	  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	  if (FC_Errors[0]){
+		  sprintf((char *)msg, "SD CARD, ");
+		  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	  }
+	  if (FC_Errors[1]){
+		  sprintf((char *)msg, "LSM6DSR, ");
+		  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	  }
+	  if (FC_Errors[2]){
+		  sprintf((char *)msg, "LPS22HH, ");
+		  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	  }
+  }
+  else{
+	  sprintf((char *)msg, "---------- ALL COMPONENTS INITIALIZED, ");
+	  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  }
+  sprintf((char *)msg, "STARTING EJECTION ----------\n");
+  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  HAL_Delay(1000);
 #endif
 
   // Start buzzer
@@ -411,10 +441,14 @@ while (alt_filtered > MAIN_DEPLOYMENT){
   {
 	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-	get_pressure(dev_ctx_lps, &pressure);
-	get_temperature(dev_ctx_lps,  &temperature);
-	get_acceleration(dev_ctx_lsm, acceleration);
-	get_angvelocity(dev_ctx_lsm, angular_rate);
+	if (!FC_Errors[1]){
+		get_acceleration(dev_ctx_lsm, acceleration);
+		get_angvelocity(dev_ctx_lsm, angular_rate);
+	}
+	if(!FC_Errors[2]){
+		get_pressure(dev_ctx_lps, &pressure);
+		get_temperature(dev_ctx_lps,  &temperature);
+	}
 	GPS_Poll(&latitude, &longitude, &time);
 
 	// Format:
@@ -434,7 +468,8 @@ while (alt_filtered > MAIN_DEPLOYMENT){
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
 #endif
 
-//	fres = sd_save();
+	if (!FC_Errors[0])
+		sd_save();
 
 	HAL_Delay(transmit_delay_time);
     /* USER CODE END WHILE */
@@ -1065,8 +1100,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
-                          |LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED1_Pin
+                          |LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, Relay_Drogue_1_Pin|Relay_Drogue_2_Pin|NSS_1_Pin, GPIO_PIN_RESET);
@@ -1077,10 +1112,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(NRESET_1_GPIO_Port, NRESET_1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin LED3_Pin
-                           LED2_Pin LED1_Pin */
-  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
-                          |LED2_Pin|LED1_Pin;
+  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin LED1_Pin
+                           LED2_Pin LED3_Pin */
+  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED1_Pin
+                          |LED2_Pin|LED3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1156,11 +1191,8 @@ float getVoltage(ADC_HandleTypeDef hadc){
  * writes row of headers for the data into the file.
  * make sure to call this after RTC has been initialized.
  *
- * returns FR_OK if all operations complete without error.
- * otherwise returns FRESULT (not FR_OK) to indicate error occurred.
- *
  */
-FRESULT sd_init(void) {
+void sd_init() {
 	//Open the file system
 	FRESULT fres = f_mount(&FatFs, "", 1); // 1 = mount now
 	if (fres != FR_OK) {
@@ -1169,12 +1201,13 @@ FRESULT sd_init(void) {
 		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-
-		__BKPT();
-		// TODO: do some error handling, @jennie idk how you want to do this
-		while(1);
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//		while(1);
 
 //		return fres;
+		return;
     }
 
 	// get current date and time to create new file for data logging
@@ -1197,7 +1230,11 @@ FRESULT sd_init(void) {
 		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	    return fres;
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//	    return fres;
+		return;
 	  }
 
 	// write data headers (time, altitude, temp, etc.)
@@ -1206,28 +1243,28 @@ FRESULT sd_init(void) {
 	fres = f_write(&fil, sdHeader, strlen(sdHeader), &bytesWrote);
 	f_sync(&fil);
 
-	if(fres == FR_OK) {
-#ifdef DEBUG_MODE
-		printf((char *)msg, "SD header write successful, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
-#endif
-	} else {
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	if(fres != FR_OK){
 #ifdef DEBUG_MODE
 		sprintf((char *)msg, "SD header write failed, fres = %i\n\n", fres);
 		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
 #endif
-		return fres;
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//		return fres;
+		return;
 	}
 
-	return fres; // if this line is reached then fres = FR_OK
+//	return fres; // if this line is reached then fres = FR_OK
+	return;
 }
 
 
-FRESULT sd_save() {
+void sd_save() {
 
 	UINT bytesWrote;
-	fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
+	FRESULT fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
 	f_sync(&fil);
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
@@ -1236,7 +1273,10 @@ FRESULT sd_save() {
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 	}
-	return fres;
+	else{
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	}
+//	return fres;
 }
 
 // Callbacks
@@ -1257,17 +1297,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 2:
 				// Pressure/Temp
-				if (readingLps != 0){		// Yield to ejection if it has control of the LPS sensor
-					break;
+				if(!FC_Errors[2]){
+					get_pressure(dev_ctx_lps, &pressure);
+					get_temperature(dev_ctx_lps,  &temperature);
 				}
-				get_pressure(dev_ctx_lps, &pressure);
-				get_temperature(dev_ctx_lps,  &temperature);
 				currTask++;
 				break;
 			case 3:
 				// Acceleration/Ang Velocity
-				get_acceleration(dev_ctx_lsm, acceleration);
-				get_angvelocity(dev_ctx_lsm, angular_rate);
+				if (!FC_Errors[1]){
+					get_acceleration(dev_ctx_lsm, acceleration);
+					get_angvelocity(dev_ctx_lsm, angular_rate);
+				}
 				currTask++;
 				break;
 			case 4:
@@ -1313,7 +1354,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
   __BKPT();
   /* USER CODE END Error_Handler_Debug */
 }

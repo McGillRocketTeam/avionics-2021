@@ -73,8 +73,11 @@ stmdev_ctx_t lsm6dsr_init(void){
 
 	if (whoamI_lsm6dsr != LSM6DSR_ID){
 		HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 		__BKPT();
-		while (1);
+		FC_Errors[1] = 1;
+		FC_Errors[5] = 1;
+//		while (1);
 	}
 
 	/* Restore default configuration */
@@ -166,8 +169,11 @@ stmdev_ctx_t lps22hh_init(void){
 
 	if ( whoamI_lps22hh != LPS22HH_ID ){
 		HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 		__BKPT();
-		while (1); /*manage here device not found */
+		FC_Errors[2] = 1;
+		FC_Errors[5] = 1;
+//		while (1); /*manage here device not found */
 	}
 
 
