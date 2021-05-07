@@ -141,7 +141,7 @@ int main(void)
   HAL_FLASH_Lock();
 
 
-  const volatile uint32_t *readData = (const volatile uint32_t *) address;
+  uint32_t *readData = (uint32_t *) address;
 
   myprintf("すごい%i\n", *readData);
 
