@@ -61,7 +61,6 @@
 // ---------- COMMENT THESE OUT AS NEEDED ---------- //
 #define		DEBUG_MODE
 //#define		CONFIG_TIME
-#define		TRANSMIT_RADIO
 // ------------------------------------------------- //
 
 /* USER CODE END PD */
@@ -93,9 +92,7 @@ UART_HandleTypeDef huart2;
 
 // Transmission buffer
 static uint8_t tx_buffer[TX_BUF_DIM];
-#ifdef DEBUG_MODE
-static uint8_t msg[1000];
-#endif
+static uint8_t msg_buffer[TX_BUF_DIM];
 
 // Ejection Variables
 float alt_meas;
@@ -125,11 +122,6 @@ uint8_t main_cont_2;
 
 // Telemetry Variables
 uint8_t telemetry_counter = 0;
-//float real_altitude;
-//uint8_t relay_check_drogue1;
-//uint8_t relay_check_drogue2;
-//uint8_t relay_check_main1;
-//uint8_t relay_check_main2;
 stmdev_ctx_t dev_ctx_lsm;
 stmdev_ctx_t dev_ctx_lps;
 uint16_t transmit_delay_time = 1000;	// After landing, transmit every second (change this)
@@ -156,10 +148,7 @@ volatile uint8_t currTask = 0;
 // SD card FatFS variables
 FATFS FatFs; 	//Fatfs handle, may need to be static
 FIL fil; 		//File handle
-FRESULT fres; 	//Result after operations
-
-// TODO: REMOVE
-uint8_t buffer_sent[] = {10,11,12,13,14};
+//FRESULT fres; 	//Result after operations
 
 /* USER CODE END PV */
 
@@ -199,10 +188,10 @@ void GPS_Poll(float*, float*, float*);
 uint32_t getAltitude();
 
 // SD initialization with new file and initial write
-FRESULT sd_init();
+void sd_init();
 
 // Save data to sd card
-FRESULT sd_save();
+void sd_save();
 
 // RnD Radio
 void transmitBuffer(char buffer[]);
@@ -268,32 +257,15 @@ int main(void)
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
 
+  // Reset error status --- indicators -> 0:SD, 1:LSM, 2:LPS, 3:Radio, 4:GPS, 5:Any
+  memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
+
   // Initialize sensors
-  // TODO: Add check mechanism (eg. if dev_ctx_lps return an error, sound the buzzer. Else, do smth)
   dev_ctx_lsm = lsm6dsr_init();
   dev_ctx_lps = lps22hh_init();
 
-  // Get initial sensor values + first string formatting
-  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
-  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-  get_pressure(dev_ctx_lps, &pressure);
-  get_temperature(dev_ctx_lps,  &temperature);
-  get_acceleration(dev_ctx_lsm, acceleration);
-  get_angvelocity(dev_ctx_lsm, angular_rate);
-  GPS_Poll(&latitude, &longitude, &time);
-  vsense_input = getVoltage(hadc1);
-  vsense_drogue = getVoltage(hadc3);
-  vsense_main = getVoltage(hadc2);
-  drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
-  drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
-  main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
-  main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
-  sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
-  			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
-
-
   // Initialize SD card and open file to begin writing
-//  fres = sd_init();
+  sd_init();
 
   // Initialize connection with RnD radio
   set_hspi(hspi3);
@@ -301,14 +273,74 @@ int main(void)
   set_BUSY_pin(BUSY_1_GPIO_Port, BUSY_1_Pin);
   set_NRESET_pin(NRESET_1_GPIO_Port, NRESET_1_Pin);
   set_DIO1_pin(DIO1_1_GPIO_Port, DIO1_1_Pin);
-//  set_DIO2_pin(DIO2_1_GPIO_Port, DIO2_1_Pin);
-//  set_DIO3_pin(DIO3_1_GPIO_Port, DIO3_1_Pin);
   Tx_setup();
 
+  // Get initial conditions (continuity, voltage sense)
+  vsense_input = getVoltage(hadc1);
+  vsense_drogue = getVoltage(hadc3);
+  vsense_main = getVoltage(hadc2);
+  drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
+  drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
+  main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
+  main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
+
+  // Send special event to ground station : "J,event#,voltage_input,voltage_drogue,voltage_main,continuity_drogue_1,continuity_drogue_2,continuity_main_1,continuity_main_2,E"
+  sprintf((char *)msg_buffer, "J,0,%01.2f,%01.2f,%01.2f,%hu,%hu,%hu,%hu,E\n", vsense_input, vsense_drogue, vsense_main, drogue_cont_1, drogue_cont_2, main_cont_1, main_cont_2);
+  irq_radio = radio_tx_1(msg_buffer, strlen((char const *)msg_buffer));
+  HAL_Delay(1400);
+  radio_tx_2(irq_radio);
 #ifdef DEBUG_MODE
-      sprintf((char *)msg, "---------- INITIALIZED ALL COMPONENTS, STARTING EJECTION ----------\n");
-      HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
-      HAL_Delay(1000);
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+#endif
+
+  // Get initial sensor values (will return 0)
+  HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
+  HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
+  get_pressure(dev_ctx_lps, &pressure);
+  get_temperature(dev_ctx_lps,  &temperature);
+  get_acceleration(dev_ctx_lsm, acceleration);
+  get_angvelocity(dev_ctx_lsm, angular_rate);
+  GPS_Poll(&latitude, &longitude, &time);
+  sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
+    		acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+
+  // Stay inside loop until button pressed
+  while (HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin)){
+	  if (FC_Errors[5])
+		  HAL_GPIO_TogglePin(LED_Status_GPIO_Port, LED_Status_Pin);
+	  HAL_Delay(250);
+  }
+  HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
+
+  // Reset LED status (now indicating ejection events)
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+
+#ifdef DEBUG_MODE
+  if (FC_Errors[5]){
+	  sprintf((char *)msg_buffer, "---------- COMPONENTS NOT INITIALIZED: ");
+	  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+	  if (FC_Errors[0]){
+		  sprintf((char *)msg_buffer, "SD CARD, ");
+		  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+	  }
+	  if (FC_Errors[1]){
+		  sprintf((char *)msg_buffer, "LSM6DSR, ");
+		  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+	  }
+	  if (FC_Errors[2]){
+		  sprintf((char *)msg_buffer, "LPS22HH, ");
+		  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+	  }
+  }
+  else{
+	  sprintf((char *)msg_buffer, "---------- ALL COMPONENTS INITIALIZED, ");
+	  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+  }
+  sprintf((char *)msg_buffer, "STARTING EJECTION ----------\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+  HAL_Delay(1000);
 #endif
 
   // Start buzzer
@@ -326,7 +358,7 @@ int main(void)
   uint32_t altitude = 0;
   uint32_t alt_filtered = 0;
 
-  // ---------- Get ground-level pressure and set as bias ----------
+  // Get ground-level pressure and set as bias
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
 	  altitude = getAltitude();
 	  alt_ground += altitude;
@@ -334,26 +366,29 @@ int main(void)
   alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
 #ifdef DEBUG_MODE
-  sprintf((char *)msg, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
-  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  sprintf((char *)msg_buffer, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
 
-// ---------- Waiting for launch ----------
-// TODO: Replace 150 by the actual value
+  // Waiting for launch
+  // TODO: Replace 500 by the actual value
   while(alt_filtered < 500){							// Waiting to launch
 	altitude = getAltitude();
 	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
-	sprintf((char *)msg, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
-	HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+	sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
+	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 	HAL_Delay(1000);
 #endif
   }
 
-// ---------- Launched -> Wait for apogee ----------
+  // Launched -> Wait for apogee
 #ifdef DEBUG_MODE
-  sprintf((char *)msg, "---------- LAUNCHED ----------\n");
-  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  sprintf((char *)msg_buffer, "---------- LAUNCHED ----------\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 #else
   // Turning off buzzer in flight mode bc launched and no one gives a shit
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
@@ -364,40 +399,64 @@ int main(void)
 	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
   }
 
-// ---------- At apogee -> Deploy drogue ----------
+// At apogee -> Deploy drogue
 #ifdef DEBUG_MODE
-  sprintf((char *)msg, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
-  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  sprintf((char *)msg_buffer, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 #endif
 
+  // Deploy drogue
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_SET);
+  HAL_Delay(DROGUE_DELAY);
+  vsense_input = getVoltage(hadc1);
+  vsense_drogue = getVoltage(hadc3);
+  vsense_main = getVoltage(hadc2);
+  drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
+  drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
+  main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
+  main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
   HAL_Delay(DROGUE_DELAY);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
 
-// ---------- Wait for main deployment altitude ----------
-while (alt_filtered > MAIN_DEPLOYMENT){
-  altitude = getAltitude();
-  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-}
 
-// ---------- At main deployment altitude -> Deploy main ----------
+// Wait for main deployment altitude
+  while (alt_filtered > MAIN_DEPLOYMENT){
+    altitude = getAltitude();
+    alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+  }
+
+// At main deployment altitude -> Deploy main
 #ifdef DEBUG_MODE
-  sprintf((char *)msg, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
-  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  sprintf((char *)msg_buffer, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+
+  // Indicate status thru LED
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 #endif
 
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_SET);
+  HAL_Delay(MAIN_DELAY);
+  vsense_input = getVoltage(hadc1);
+  vsense_drogue = getVoltage(hadc3);
+  vsense_main = getVoltage(hadc2);
+  drogue_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_1_GPIO_Port, Drogue_Continuity_1_Pin);
+  drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
+  main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
+  main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
   HAL_Delay(MAIN_DELAY);
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
 
 // ---------- END OF EJECTION CODE ----------
 #ifdef DEBUG_MODE
-  sprintf((char *)msg, "---------- EXITING EJECTION ----------\n");
-  HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+  sprintf((char *)msg_buffer, "---------- EXITING EJECTION ----------\n");
+  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
 
   // Stop the timer from interrupting and enter while loop
@@ -411,10 +470,14 @@ while (alt_filtered > MAIN_DEPLOYMENT){
   {
 	HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
 	HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
-	get_pressure(dev_ctx_lps, &pressure);
-	get_temperature(dev_ctx_lps,  &temperature);
-	get_acceleration(dev_ctx_lsm, acceleration);
-	get_angvelocity(dev_ctx_lsm, angular_rate);
+	if (!FC_Errors[1]){
+		get_acceleration(dev_ctx_lsm, acceleration);
+		get_angvelocity(dev_ctx_lsm, angular_rate);
+	}
+	if(!FC_Errors[2]){
+		get_pressure(dev_ctx_lps, &pressure);
+		get_temperature(dev_ctx_lps,  &temperature);
+	}
 	GPS_Poll(&latitude, &longitude, &time);
 
 	// Format:
@@ -423,18 +486,22 @@ while (alt_filtered > MAIN_DEPLOYMENT){
 	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
 			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
 
-#ifdef TRANSMIT_RADIO
 	// Transmit via radio
 	irq_radio = radio_tx_1(tx_buffer, strlen((char const *)tx_buffer));
 	HAL_Delay(1400);
 	radio_tx_2(irq_radio);
-#endif
 
 #ifdef DEBUG_MODE
 	HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
+
+	// Toggle pins to indicate landing
+	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+	HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 #endif
 
-//	fres = sd_save();
+	if (!FC_Errors[0])
+		sd_save();
 
 	HAL_Delay(transmit_delay_time);
     /* USER CODE END WHILE */
@@ -762,10 +829,10 @@ static void MX_RTC_Init(void)
   RTC_TimeTypeDef stimestructure;
 
   /*##-1- Configure the Date #################################################*/
-  /* Set Date: Tuesday April 8th 2021 */
+  /* Set Date: Thursday May 6th 2021 */
   sdatestructure.Year = 0x21;
-  sdatestructure.Month = RTC_MONTH_APRIL;
-  sdatestructure.Date = 0x08;
+  sdatestructure.Month = RTC_MONTH_MAY;
+  sdatestructure.Date = 0x06;
   sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
 
   if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
@@ -775,11 +842,11 @@ static void MX_RTC_Init(void)
   }
 
   /*##-2- Configure the Time #################################################*/
-  /* Set Time: 01:45:00 */
-  stimestructure.Hours = 0x02;
-  stimestructure.Minutes = 0x47;
+  /* Set Time: 11:00:00 PM */
+  stimestructure.Hours = 0x11;
+  stimestructure.Minutes = 0x00;
   stimestructure.Seconds = 0x00;
-  stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
+  stimestructure.TimeFormat = RTC_HOURFORMAT12_PM;
   stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
   stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
 
@@ -1065,8 +1132,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
-                          |LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED1_Pin
+                          |LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, Relay_Drogue_1_Pin|Relay_Drogue_2_Pin|NSS_1_Pin, GPIO_PIN_RESET);
@@ -1077,10 +1144,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(NRESET_1_GPIO_Port, NRESET_1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin LED3_Pin
-                           LED2_Pin LED1_Pin */
-  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED3_Pin
-                          |LED2_Pin|LED1_Pin;
+  /*Configure GPIO pins : LED_Status_Pin Relay_Main_1_Pin Relay_Main_2_Pin LED1_Pin
+                           LED2_Pin LED3_Pin */
+  GPIO_InitStruct.Pin = LED_Status_Pin|Relay_Main_1_Pin|Relay_Main_2_Pin|LED1_Pin
+                          |LED2_Pin|LED3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1156,25 +1223,23 @@ float getVoltage(ADC_HandleTypeDef hadc){
  * writes row of headers for the data into the file.
  * make sure to call this after RTC has been initialized.
  *
- * returns FR_OK if all operations complete without error.
- * otherwise returns FRESULT (not FR_OK) to indicate error occurred.
- *
  */
-FRESULT sd_init(void) {
+void sd_init() {
 	//Open the file system
 	FRESULT fres = f_mount(&FatFs, "", 1); // 1 = mount now
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
-		sprintf((char *)msg, "SD f_mount failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+		sprintf((char *)msg_buffer, "SD f_mount failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-
-		__BKPT();
-		// TODO: do some error handling, @jennie idk how you want to do this
-		while(1);
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//		while(1);
 
 //		return fres;
+		return;
     }
 
 	// get current date and time to create new file for data logging
@@ -1193,11 +1258,15 @@ FRESULT sd_init(void) {
 
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
-		sprintf((char *)msg, "SD file open failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+		sprintf((char *)msg_buffer, "SD file open failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-	    return fres;
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//	    return fres;
+		return;
 	  }
 
 	// write data headers (time, altitude, temp, etc.)
@@ -1206,37 +1275,40 @@ FRESULT sd_init(void) {
 	fres = f_write(&fil, sdHeader, strlen(sdHeader), &bytesWrote);
 	f_sync(&fil);
 
-	if(fres == FR_OK) {
+	if(fres != FR_OK){
 #ifdef DEBUG_MODE
-		printf((char *)msg, "SD header write successful, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+		sprintf((char *)msg_buffer, "SD header write failed, fres = %i\n\n", fres);
+		HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
-	} else {
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-#ifdef DEBUG_MODE
-		sprintf((char *)msg, "SD header write failed, fres = %i\n\n", fres);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
-#endif
-		return fres;
+		FC_Errors[0] = 1;
+		FC_Errors[5] = 1;
+//		__BKPT();
+//		return fres;
+		return;
 	}
 
-	return fres; // if this line is reached then fres = FR_OK
+//	return fres; // if this line is reached then fres = FR_OK
+	return;
 }
 
 
-FRESULT sd_save() {
+void sd_save() {
 
 	UINT bytesWrote;
-	fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
+	FRESULT fres = f_write(&fil, (char *) tx_buffer, strlen((char *) tx_buffer), &bytesWrote);
 	f_sync(&fil);
 	if (fres != FR_OK) {
 #ifdef DEBUG_MODE
-		printf((char *)msg, "SD data write failed, fres = %i, bytes written = %d\n\n", fres, bytesWrote);
-		HAL_UART_Transmit(&huart1, msg, strlen((char const *)msg), 1000);
+		printf((char *)msg_buffer, "SD data write failed, fres = %i, bytes written = %d\n\n", fres, bytesWrote);
+		HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 #endif
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 	}
-	return fres;
+	else{
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	}
+//	return fres;
 }
 
 // Callbacks
@@ -1257,17 +1329,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 2:
 				// Pressure/Temp
-				if (readingLps != 0){		// Yield to ejection if it has control of the LPS sensor
-					break;
+				if(!FC_Errors[2]){
+					get_pressure(dev_ctx_lps, &pressure);
+					get_temperature(dev_ctx_lps,  &temperature);
 				}
-				get_pressure(dev_ctx_lps, &pressure);
-				get_temperature(dev_ctx_lps,  &temperature);
 				currTask++;
 				break;
 			case 3:
 				// Acceleration/Ang Velocity
-				get_acceleration(dev_ctx_lsm, acceleration);
-				get_angvelocity(dev_ctx_lsm, angular_rate);
+				if (!FC_Errors[1]){
+					get_acceleration(dev_ctx_lsm, acceleration);
+					get_angvelocity(dev_ctx_lsm, angular_rate);
+				}
 				currTask++;
 				break;
 			case 4:
@@ -1283,7 +1356,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				break;
 			case 6:
 				// Save to SD card
-//				fres = sd_save();
+				if(!FC_Errors[0])
+					sd_save();
 				currTask++;
 				break;
 			case 7:
@@ -1313,7 +1387,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
   __BKPT();
   /* USER CODE END Error_Handler_Debug */
 }
