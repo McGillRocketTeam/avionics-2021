@@ -7,13 +7,11 @@
 
 #include "ejection.h"
 
+float vel_previous[NUM_MEAS_AVGING];
 uint32_t prevTick = 0;
 float T;						// sampling period, time of each loop
-float alt_previous[NUM_MEAS_AVGING];
-float vel_previous[NUM_MEAS_AVGING];
 
 // Private functions
-float filterAltitude(float altitude, float time);
 void storeAltitude(float new_altitude, float time);
 
 // cutoff frequency of lowpass filter
