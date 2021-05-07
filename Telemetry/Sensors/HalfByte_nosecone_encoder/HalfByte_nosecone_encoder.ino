@@ -60,6 +60,8 @@ imu::Vector<3> euler;
 int seaLevelhPa = 102540;
 int i = 0;
 int err;
+uint8_t halflength;
+char* encodedData;
 uint8_t runNum = 0;
 char fileName[11];
 char errorMess[35];
@@ -221,11 +223,14 @@ void loop() {
 //     Serial.println(err);
 //     return;
 //  }
-
-  snprintf(init_buffer, sizeof(init_buffer), "s%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
+  
+  snprintf(init_buffer, sizeof(init_buffer), "h%07.2f;%07.2f;%07.2f;%06.2f;%06.2f;%06.2f;%09.2f;%08.2f;%09ld;%09ld;%02hu:%02hu:%02hue",
               pitch, roll, yaw, accel_x, accel_y, accel_z, pressure, real_altitude, latitude, longitude, hour, minutes, sec);
 
-  sendAndWrite(init_buffer, (uint8_t)sizeof(init_buffer));
+  //Serial.println(init_buffer);
+  halfbyteEncoder(init_buffer);
+  
+  //sendAndWrite(init_buffer);
   
   
   delay(200);
@@ -284,7 +289,7 @@ void sendAndWrite(char* string, uint8_t data_length) {
     Serial.print("SD card is not well connected");
   }
   
-  send_data = (uint8_t*)malloc(data_length);
+  send_data = (uint8_t*)malloc((int)data_length);
   memcpy(send_data, string, data_length);
 
   Serial.println((char*)send_data);
@@ -364,4 +369,68 @@ void initialize() {
   // MANUALLY SETTING INCOMINGBYTE ====================================
   isInitialized = true;
   
+}
+
+void halfbyteEncoder(char* buffer) {
+  Serial.print("Pre-encoded: ");
+  Serial.println(buffer);
+  //Getting the length of the new string
+  int len = strlen(buffer);
+  Serial.print("length  of buffer: ");
+  Serial.println(strlen(buffer));
+  bool isOdd = false;
+  if(len%2 == 1) {
+    len++;
+    isOdd = true;
+    Serial.println("isodd");
+  }
+  halflength = len/2;
+
+  //Malloc the necessary space
+  encodedData = (char*)malloc(halflength);
+
+  uint8_t j = 0;
+  int i = 0; //j is index for encodedData and i is index for buffer
+  
+  //Combine all chars
+  for(i=0; i<len; i+=2) {
+
+    compress(buffer[i]);
+    compress(buffer[i+1]);
+
+    buffer[i] = buffer[i] << 4;
+    encodedData[j] = buffer[i] | buffer[i+1];
+    j++;
+  }
+
+  if(isOdd) {
+    compress(buffer[i]);
+    buffer[i] = buffer[i] << 4;
+    encodedData[j]= buffer[i] | 00001110;
+  }
+
+  Serial.print("Encoded: ");
+  Serial.println(encodedData);
+  Serial.print("strlen: ");
+  Serial.println(j);
+  Serial.print("halflength: ");
+  Serial.println(halflength);
+  Serial.println();
+  sendAndWrite(encodedData, j);
+  
+  free(encodedData);
+}
+
+void compress(char character) {
+  if (character == 's') {
+    character = '\\' - 'P'; //00001100
+  } else if (character == 'e') {
+    character = ']' - 'P'; //00001101
+  } else if (character == ';') {
+    character = 'Z' - 'P'; //00001010
+  } else if (character == ':') {
+    character = '[' - 'P'; //00001011
+  } else {
+    character = character - '0';
+  }
 }
