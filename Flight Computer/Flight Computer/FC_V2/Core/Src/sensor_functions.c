@@ -98,7 +98,7 @@ stmdev_ctx_t lsm6dsr_init(void){
 	lsm6dsr_gy_data_rate_set(&dev_ctx_lsm6dsr, LSM6DSR_GY_ODR_12Hz5);
 
 	/* Set full scale */
-	lsm6dsr_xl_full_scale_set(&dev_ctx_lsm6dsr, LSM6DSR_2g);
+	lsm6dsr_xl_full_scale_set(&dev_ctx_lsm6dsr, LSM6DSR_8g);
 	lsm6dsr_gy_full_scale_set(&dev_ctx_lsm6dsr, LSM6DSR_2000dps);
 
 	/* Configure filtering chain(No aux interface)
@@ -188,7 +188,7 @@ stmdev_ctx_t lps22hh_init(void){
 	lps22hh_block_data_update_set(&dev_ctx_lps22hh, PROPERTY_ENABLE);
 
 	/* Set Output Data Rate */
-	lps22hh_data_rate_set(&dev_ctx_lps22hh, LPS22HH_10_Hz_LOW_NOISE);
+	lps22hh_data_rate_set(&dev_ctx_lps22hh, LPS22HH_75_Hz_LOW_NOISE);
 
 	return dev_ctx_lps22hh;
 }

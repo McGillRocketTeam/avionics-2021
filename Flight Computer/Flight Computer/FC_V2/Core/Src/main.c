@@ -383,6 +383,8 @@ int main(void)
 	sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
 	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
 	HAL_Delay(700);
+#else
+	HAL_Delay(15);
 #endif
   }
 
@@ -403,6 +405,7 @@ int main(void)
   while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
 	altitude = getAltitude();
 	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+	HAL_Delay(15);
   }
 
 // At apogee -> Deploy drogue
@@ -434,6 +437,7 @@ int main(void)
   while (alt_filtered > MAIN_DEPLOYMENT){
     altitude = getAltitude();
     alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+    HAL_Delay(15);
   }
 
   // At main deployment altitude -> Deploy main
@@ -465,6 +469,7 @@ int main(void)
     	count++;
     else
     	count = 0;
+    HAL_Delay(15);
   }
 
   // Stop the timer from interrupting and enter while loop
