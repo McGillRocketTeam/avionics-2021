@@ -1,3 +1,5 @@
+#include <sx1262.h>
+
 #include <SoftwareSerial.h>
 #include <sx1262.h>
 #include <SPI.h>
@@ -271,8 +273,8 @@ void loop()
   Serial.println(buf[1]);
 #endif
   device.readBuffer(buf[1], buf[0], (uint8_t*)receive_data, true);
-  Serial.println(receive_data);
+  Serial.print(receive_data);
+  memset(receive_data, 0, strlen(receive_data));
+//  Serial.flush();
   sx1262_setup();
-
-  delay(2000);
 }
