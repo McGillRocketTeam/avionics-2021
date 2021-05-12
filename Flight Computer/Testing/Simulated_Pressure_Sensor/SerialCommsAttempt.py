@@ -51,7 +51,7 @@ sendTemp = "1" # value to send temp
 stopValue = "2" # value to terminate program 
 threshold = 0.1 # time threshold for time.sleep() to adjust for program latency
 
-dataFile = "PressureTempData.csv" # contains pressure and temperature data
+dataFile = "PressureTempData_mod.csv" # contains pressure and temperature data
 
 # attempt to open serial port
 while (True):
@@ -68,6 +68,7 @@ while (True):
 # example: ['11.1', '85929', '1368.52', '-2.50525', '46.03']
 # for editability, use variable to indicate which data we want to send:
 altDataPosition = 1   # second element in list
+timeDataPosition = 0
 TempDataPosition = -1 # last element in list
 
 with open (dataFile,'r') as fp:
@@ -101,7 +102,7 @@ with open (dataFile,'r') as fp:
             print(line)
             
             if (line[-4] == sendAlt):
-                toTransmit = str(currentLine[altDataPosition]) + "\n"
+                toTransmit = str(currentLine[timeDataPosition] + 'A' + currentLine[altDataPosition]) + "\n"
 
                 #print(repr("to transmit: " + toTransmit)) # check transmitted message
 
