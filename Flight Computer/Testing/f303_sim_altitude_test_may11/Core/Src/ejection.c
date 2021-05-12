@@ -7,9 +7,9 @@
 
 #include "ejection.h"
 
-float vel_previous[NUM_MEAS_AVGING];
 uint32_t prevTick = 0;
 float T;						// sampling period, time of each loop
+float alpha;
 
 // Private functions
 void storeAltitude(float new_altitude, float time);
@@ -19,8 +19,8 @@ float cutoff = 0.00001; // idk what the units are but matlab simulation says thi
 
 // Public function implementation
 float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
-//  T = (currTick - prevTick) / 1000;
-  T = 0.01;
+  T = (float)(currTick - prevTick) / 1000;
+
   prevTick = currTick;
   alt_meas = currAlt - alt_ground; // Measures AGL altitude in feet
   float alt_filtered = filterAltitude(alt_meas, T);
@@ -33,7 +33,7 @@ float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
 // Low-pass filter - rocket at high speeds pressure fluctuates and affects altitude reading, usually at a high frequency, so low pass filter filters those high freuqency changes out
 // and keeps just the overall, low frequency changes (caused by altitude change)
 float filterAltitude(float altitude, float time){
-  float alpha = time / (cutoff + time);
+  alpha = time / (cutoff + time);
 //  return (1 - time * LPF_A) * alt_previous[NUM_MEAS_AVGING - 1] + LPF_A * time * altitude;
   return (altitude * alpha + (1 - alpha) * alt_previous[NUM_MEAS_AVGING - 1]);
 }
@@ -60,7 +60,10 @@ float getAverageVelocity(){
 float getVelocityGradient() {
 	float gradient = 0;
 	for (int i = 0; i < NUM_MEAS_AVGING - 1; i++) {
-		gradient += vel_previous[i+1] - vel_previous[i];
+//		gradient += (vel_previous[i+1] - vel_previous[i]);
+		gradient += vel_previous[i];
 	}
-	gradient /= NUM_MEAS_AVGING;
+	gradient = gradient / NUM_MEAS_AVGING;
+
+	return gradient;
 }

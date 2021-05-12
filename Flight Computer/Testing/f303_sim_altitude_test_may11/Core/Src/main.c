@@ -119,7 +119,7 @@ static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 // Convert pressure to altitude function
-uint32_t getAltitude();
+float getAltitude();
 void get_pressure(float *pressure, float *millis);
 float getVelocityGradient();
 /* USER CODE END PFP */
@@ -171,6 +171,10 @@ int main(void)
   memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
   FC_Errors[5] = 1;
 
+  // Reset ejection arrays
+  memset(alt_previous, 0, NUM_MEAS_AVGING*sizeof(*alt_previous));
+  memset(vel_previous, 0, NUM_MEAS_AVGING*sizeof(*vel_previous));
+
   // Get initial sensor values (will return 0)
   HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
   HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
@@ -196,8 +200,8 @@ int main(void)
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 
   // ---------- START OF EJECTION CODE ----------
-    uint32_t altitude = 0;
-    uint32_t alt_filtered = 0;
+    float altitude = 0;
+    float alt_filtered = 0;
 
     // Get ground-level pressure and set as bias
     for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -235,10 +239,10 @@ int main(void)
   #endif
 
     // apogee detection
-    while (getVelocityGradient() > -10 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
+    while (getVelocityGradient() > -2 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
     	altitude = getAltitude();
     	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-    	HAL_Delay(15);
+    	HAL_Delay(100);
     }
 
   // At apogee -> Deploy drogue
@@ -500,9 +504,9 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint32_t getAltitude(){
+float getAltitude(){
 	get_pressure(&pressure, &millis);
-	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
+	float altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
 }
 
