@@ -44,7 +44,7 @@ import time
 ser = serial.Serial()
 ser.baudrate = 38400
 ser.timeout = 1 # 1 second
-ser.port = 'COM11'
+ser.port = 'COM8'
 
 sendAlt = "0"  # value received from microcontroller to send altitude
 sendTemp = "1" # value to send temp
@@ -78,11 +78,12 @@ with open (dataFile,'r') as fp:
     nextLine = currentLine
 
     while (True):
-        print("bytes in rx: " + str(ser.in_waiting))   # print buffer bytes for debug
+        # print("bytes in rx: " + str(ser.in_waiting))   # print buffer bytes for debug
         #print("bytes in tx: " + str(ser.out_waiting))
         nextLine = next(csv_reader)
-        print("nextLine = " + str(nextLine))
-        deltaT = float(nextLine[0]) - float(currentLine[0])
+        # print("nextLine = " + str(nextLine))
+        # deltaT = float(nextLine[0]) - float(currentLine[0])
+        deltaT = 0.2
         time.sleep(deltaT - threshold)
         #print("Time: " + currentLine[0] + "\t Pressure: " + currentLine[1])
 
