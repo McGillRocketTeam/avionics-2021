@@ -56,3 +56,11 @@ float getAverageVelocity(){
   }
   return average_vel/NUM_MEAS_AVGING;
 }
+
+float getVelocityGradient() {
+	float gradient = 0;
+	for (int i = 0; i < NUM_MEAS_AVGING - 1; i++) {
+		gradient += vel_previous[i+1] - vel_previous[i];
+	}
+	gradient /= NUM_MEAS_AVGING;
+}

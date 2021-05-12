@@ -120,7 +120,7 @@ static void MX_RTC_Init(void);
 // Convert pressure to altitude function
 uint32_t getAltitude();
 void get_pressure(float *pressure);
-
+float getVelocityGradient();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -233,10 +233,11 @@ int main(void)
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
   #endif
 
-    while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
-		altitude = getAltitude();
-		alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-		HAL_Delay(15);
+    // apogee detection
+    while (getVelocityGradient() > -2 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
+    	altitude = getAltitude();
+    	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+    	HAL_Delay(15);
     }
 
   // At apogee -> Deploy drogue
