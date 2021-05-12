@@ -7,19 +7,20 @@
 
 #include "ejection.h"
 
-float vel_previous[NUM_MEAS_AVGING];
 uint32_t prevTick = 0;
 float T;						// sampling period, time of each loop
+float alpha;
 
 // Private functions
 void storeAltitude(float new_altitude, float time);
 
 // cutoff frequency of lowpass filter
-float cutoff = 0.001; // idk what the units are but matlab simulation says this will work
+float cutoff = 0.00001; // idk what the units are but matlab simulation says this will work
 
 // Public function implementation
 float runAltitudeMeasurements(uint32_t currTick, uint16_t currAlt){
-  T = (currTick - prevTick) / 1000;
+  T = (float)(currTick - prevTick) / 1000;
+
   prevTick = currTick;
   alt_meas = currAlt - alt_ground; // Measures AGL altitude in feet
   float alt_filtered = filterAltitude(alt_meas, T);
@@ -54,4 +55,15 @@ float getAverageVelocity(){
     average_vel += vel_previous[i];
   }
   return average_vel/NUM_MEAS_AVGING;
+}
+
+float getVelocityGradient() {
+	float gradient = 0;
+	for (int i = 0; i < NUM_MEAS_AVGING - 1; i++) {
+//		gradient += (vel_previous[i+1] - vel_previous[i]);
+		gradient += vel_previous[i];
+	}
+	gradient = gradient / NUM_MEAS_AVGING;
+
+	return gradient;
 }

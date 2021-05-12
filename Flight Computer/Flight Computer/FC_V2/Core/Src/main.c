@@ -186,7 +186,7 @@ extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
 void GPS_Poll(float*, float*, float*);
 
 // Convert pressure to altitude function
-uint32_t getAltitude();
+float getAltitude();
 
 // SD initialization with new file and initial write
 void sd_init();
@@ -260,6 +260,10 @@ int main(void)
 
   // Reset error status --- indicators -> 0:SD, 1:LSM, 2:LPS, 3:Radio, 4:GPS, 5:Any
   memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
+
+  // Reset ejection arrays
+  memset(alt_previous, 0, NUM_MEAS_AVGING*sizeof(*alt_previous));
+  memset(vel_previous, 0, NUM_MEAS_AVGING*sizeof(*vel_previous));
 
   // Initialize sensors
   dev_ctx_lsm = lsm6dsr_init();
@@ -359,8 +363,8 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
 
   // ---------- START OF EJECTION CODE ----------
-  uint32_t altitude = 0;
-  uint32_t alt_filtered = 0;
+  float altitude = 0;
+  float alt_filtered = 0;
 
   // Get ground-level pressure and set as bias
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -402,10 +406,10 @@ int main(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
 
-  while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
+  while (getAverageVelocity() > -2 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
 	altitude = getAltitude();
 	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-	HAL_Delay(15);
+	HAL_Delay(100);
   }
 
 // At apogee -> Deploy drogue
@@ -1219,7 +1223,7 @@ static void MX_GPIO_Init(void)
 
 // Function Definitions
 // TODO: Move this to sensor_functions.c
-uint32_t getAltitude(){
+float getAltitude(){
 	readingLps = 1;
 	get_pressure(dev_ctx_lps, &pressure);
 	readingLps = 0;
