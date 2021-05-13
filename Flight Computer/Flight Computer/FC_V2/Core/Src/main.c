@@ -105,6 +105,7 @@ uint8_t inFlight = 0;
 uint8_t main_deployed = 0;
 
 uint32_t count = 0;
+uint8_t currElem = 0;
 
 uint8_t readingLps = 0;
 
@@ -262,8 +263,10 @@ int main(void)
   memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
 
   // Reset ejection arrays
-  memset(alt_previous, 0, NUM_MEAS_AVGING*sizeof(*alt_previous));
-  memset(vel_previous, 0, NUM_MEAS_AVGING*sizeof(*vel_previous));
+  memset(alt_previous, 0, NUM_MEAS_REG*sizeof(*alt_previous));
+  memset(time_previous, 0, NUM_MEAS_REG*sizeof(*time_previous));
+  memset(timalt_previous, 0, NUM_MEAS_REG*sizeof(*timalt_previous));
+  memset(timsqr_previous, 0, NUM_MEAS_REG*sizeof(*timsqr_previous));
 
   // Initialize sensors
   dev_ctx_lsm = lsm6dsr_init();
@@ -406,10 +409,23 @@ int main(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
 
-  while (getAverageVelocity() > -2 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
-	altitude = getAltitude();
-	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-	HAL_Delay(100);
+  uint8_t numNVals = 0;
+  float fittedSlope = 0;
+
+  while (1){
+	  altitude = getAltitude();
+	  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+	  fittedSlope = LSLinRegression();
+
+	  if (fittedSlope < 0){
+		  numNVals += 1;
+		  if (numNVals > NUM_DESCENDING_SAMPLES){
+			  break;
+		  }
+	  }
+	  else{
+		  numNVals = 0;
+	  }
   }
 
 // At apogee -> Deploy drogue
@@ -469,7 +485,7 @@ int main(void)
 
   // Landing detection
   while (count < LANDING_SAMPLES) {
-    if (filterAltitude(altitude, time) - alt_previous[NUM_MEAS_AVGING] < LANDING_THRESHOLD)
+    if (filterAltitude(altitude, time) - alt_previous[NUM_MEAS_REG] < LANDING_THRESHOLD)
     	count++;
     else
     	count = 0;
@@ -1224,9 +1240,9 @@ static void MX_GPIO_Init(void)
 // Function Definitions
 // TODO: Move this to sensor_functions.c
 float getAltitude(){
-	readingLps = 1;
+//	readingLps = 1;
 	get_pressure(dev_ctx_lps, &pressure);
-	readingLps = 0;
+//	readingLps = 0;
 	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
 }
