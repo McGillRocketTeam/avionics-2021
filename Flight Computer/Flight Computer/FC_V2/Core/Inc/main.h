@@ -108,9 +108,10 @@ void Error_Handler(void);
 #define		LOCAL_PRESSURE			1012		// hPa (Sea level)
 #define		MAIN_DEPLOYMENT			1500		// ft
 #define		THRESHOLD_ALTITUDE		10000		// ft
-#define		DROGUE_DELAY			500			// ms (Time that drogue is HIGH)
-#define		MAIN_DELAY				500			// ms (Time that main is HIGH)
-#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1
+#define		DROGUE_DELAY			100			// ms
+#define		MAIN_DELAY				100			// ms
+#define   TELEMETRY_DELAY   1400    // ms
+#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1 (idk why 1 but there it is)
 #define		LANDING_THRESHOLD		20			// Change in altitude to detect landing
 #define		LANDING_SAMPLES			100
 //#define		DROGUE_DEPLOYMENT_VEL	10
