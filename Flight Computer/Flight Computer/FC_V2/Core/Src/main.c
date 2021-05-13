@@ -105,6 +105,7 @@ uint8_t inFlight = 0;
 uint8_t main_deployed = 0;
 
 uint32_t count = 0;
+uint8_t currElem = 0;
 
 uint8_t readingLps = 0;
 
@@ -186,7 +187,7 @@ extern void get_temperature(stmdev_ctx_t dev_ctx,  float *temperature);
 void GPS_Poll(float*, float*, float*);
 
 // Convert pressure to altitude function
-uint32_t getAltitude();
+float getAltitude();
 
 // SD initialization with new file and initial write
 void sd_init();
@@ -260,6 +261,12 @@ int main(void)
 
   // Reset error status --- indicators -> 0:SD, 1:LSM, 2:LPS, 3:Radio, 4:GPS, 5:Any
   memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
+
+  // Reset ejection arrays
+  memset(alt_previous, 0, NUM_MEAS_REG*sizeof(*alt_previous));
+  memset(time_previous, 0, NUM_MEAS_REG*sizeof(*time_previous));
+  memset(timalt_previous, 0, NUM_MEAS_REG*sizeof(*timalt_previous));
+  memset(timsqr_previous, 0, NUM_MEAS_REG*sizeof(*timsqr_previous));
 
   // Initialize sensors
   dev_ctx_lsm = lsm6dsr_init();
@@ -359,8 +366,8 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
 
   // ---------- START OF EJECTION CODE ----------
-  uint32_t altitude = 0;
-  uint32_t alt_filtered = 0;
+  float altitude = 0;
+  float alt_filtered = 0;
 
   // Get ground-level pressure and set as bias
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -402,10 +409,23 @@ int main(void)
   HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 #endif
 
-  while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
-	altitude = getAltitude();
-	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-	HAL_Delay(15);
+  uint8_t numNVals = 0;
+  float fittedSlope = 0;
+
+  while (1){
+	  altitude = getAltitude();
+	  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+	  fittedSlope = LSLinRegression();
+
+	  if (fittedSlope < 0){
+		  numNVals += 1;
+		  if (numNVals > NUM_DESCENDING_SAMPLES){
+			  break;
+		  }
+	  }
+	  else{
+		  numNVals = 0;
+	  }
   }
 
 // At apogee -> Deploy drogue
@@ -465,7 +485,7 @@ int main(void)
 
   // Landing detection
   while (count < LANDING_SAMPLES) {
-    if (filterAltitude(altitude, time) - alt_previous[NUM_MEAS_AVGING] < LANDING_THRESHOLD)
+    if (filterAltitude(altitude, time) - alt_previous[NUM_MEAS_REG] < LANDING_THRESHOLD)
     	count++;
     else
     	count = 0;
@@ -1219,10 +1239,10 @@ static void MX_GPIO_Init(void)
 
 // Function Definitions
 // TODO: Move this to sensor_functions.c
-uint32_t getAltitude(){
-	readingLps = 1;
+float getAltitude(){
+//	readingLps = 1;
 	get_pressure(dev_ctx_lps, &pressure);
-	readingLps = 0;
+//	readingLps = 0;
 	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
 }

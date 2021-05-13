@@ -110,20 +110,22 @@ void Error_Handler(void);
 #define		THRESHOLD_ALTITUDE		10000		// ft
 #define		DROGUE_DELAY			500			// ms (Time that drogue is HIGH)
 #define		MAIN_DELAY				500			// ms (Time that main is HIGH)
-#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1 (idk why 1 but there it is)
+#define		LPF_A					6.28318		// LPF_A = 2 * 3.14159 * 1
 #define		LANDING_THRESHOLD		20			// Change in altitude to detect landing
 #define		LANDING_SAMPLES			100
-#define		DROGUE_DEPLOYMENT_VEL	10
+//#define		DROGUE_DEPLOYMENT_VEL	10
 
 // Configurations
-#define		BUZZER_FREQ			3750		// Hz (Buzzer sound frequency)
-#define		NUM_MEAS_AVGING		100			// (Number of historic measurements for averaging)
-#define		ALT_MEAS_AVGING		500
+#define		BUZZER_FREQ				3750		// Hz (Buzzer sound frequency)
+#define		NUM_MEAS_REG			50			// Number of historic measurements for linear regression
+#define		ALT_MEAS_AVGING			500
+#define		NUM_DESCENDING_SAMPLES	30			// Number of descending slope values for apogee detection to pass
 
 #define		SD_SPI_HANDLE		hspi2
 
 extern float alt_meas;
 extern float alt_ground;
+extern uint8_t currElem;
 
 // Error indicators -> 0:SD, 1:LSM, 2:LPS, 3:Radio, 4:GPS, 5:Any
 uint8_t FC_Errors[6];

@@ -94,6 +94,7 @@ uint8_t telemetry_counter = 0;
 float acceleration[] = {0, 0, 0};
 float angular_rate[]= {0, 0, 0};
 float pressure = 0;
+float millis = 0;
 float temperature = 0;
 float latitude;
 float longitude;
@@ -118,9 +119,9 @@ static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 // Convert pressure to altitude function
-uint32_t getAltitude();
-void get_pressure(float *pressure);
-
+float getAltitude();
+void get_pressure(float *pressure, float *millis);
+float getVelocityGradient();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -170,6 +171,10 @@ int main(void)
   memset(FC_Errors, 0, 6*sizeof(*FC_Errors));
   FC_Errors[5] = 1;
 
+  // Reset ejection arrays
+  memset(alt_previous, 0, NUM_MEAS_AVGING*sizeof(*alt_previous));
+  memset(vel_previous, 0, NUM_MEAS_AVGING*sizeof(*vel_previous));
+
   // Get initial sensor values (will return 0)
   HAL_RTC_GetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BIN);
   HAL_RTC_GetTime(&hrtc, &stimestructureget, RTC_FORMAT_BIN);
@@ -182,8 +187,8 @@ int main(void)
   }
   HAL_GPIO_WritePin(LED_Status_GPIO_Port, LED_Status_Pin, GPIO_PIN_SET);
 
-  sprintf((char *)msg_buffer, "---------- TELL SCRIPT TO START ----------\n");
-  HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//  sprintf((char *)msg_buffer, "---------- TELL SCRIPT TO START ----------\n");
+//  HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
 
   sprintf((char *)msg_buffer, "S\n"); // transmit s to start
   HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
@@ -195,8 +200,8 @@ int main(void)
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 
   // ---------- START OF EJECTION CODE ----------
-    uint32_t altitude = 0;
-    uint32_t alt_filtered = 0;
+    float altitude = 0;
+    float alt_filtered = 0;
 
     // Get ground-level pressure and set as bias
     for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -206,8 +211,8 @@ int main(void)
     alt_ground = alt_ground/ALT_MEAS_AVGING; 			// Average of altitude readings
 
   #ifdef DEBUG_MODE
-    sprintf((char *)msg_buffer, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
-    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//    sprintf((char *)msg_buffer, "---------- AVERAGE OF ALT READINGS: %hu ft. NOW WAITING FOR LAUNCH ----------\n", (uint16_t)alt_ground);
+//    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
   #endif
 
     // Waiting for launch
@@ -216,8 +221,8 @@ int main(void)
   	altitude = getAltitude();
   	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
   #ifdef DEBUG_MODE
-  	sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
-  	HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//  	sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
+//  	HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
   #endif
   	HAL_Delay(15);
     }
@@ -226,23 +231,24 @@ int main(void)
     // Set flight indicator
     inFlight = 1;
   #ifdef DEBUG_MODE
-    sprintf((char *)msg_buffer, "---------- LAUNCHED ----------\n");
-    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//    sprintf((char *)msg_buffer, "---------- LAUNCHED ----------\n");
+//    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
 
     // Indicate status thru LED
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
   #endif
 
-    while (getAverageVelocity() > -DROGUE_DEPLOYMENT_VEL || alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
-		altitude = getAltitude();
-		alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-		HAL_Delay(15);
+    // apogee detection
+    while (getVelocityGradient() > -2 && alt_filtered < THRESHOLD_ALTITUDE){ // while moving up and hasn't reached threshold altitude yet
+    	altitude = getAltitude();
+    	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+    	HAL_Delay(100);
     }
 
   // At apogee -> Deploy drogue
   #ifdef DEBUG_MODE
-    sprintf((char *)msg_buffer, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
-    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//    sprintf((char *)msg_buffer, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
+//    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
 
     // Indicate status thru LED
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
@@ -261,8 +267,8 @@ int main(void)
 
     // At main deployment altitude -> Deploy main
   #ifdef DEBUG_MODE
-    sprintf((char *)msg_buffer, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
-    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
+//    sprintf((char *)msg_buffer, "---------- DEPLOYING MAIN AT %hu ft ----------\n", (uint16_t)altitude);
+//    HAL_UART_Transmit(&huart2, msg_buffer, strlen((char const *)msg_buffer), 1000);
 
     // Indicate status thru LED
     HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
@@ -498,13 +504,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint32_t getAltitude(){
-	get_pressure(&pressure);
-	uint32_t altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
+float getAltitude(){
+	get_pressure(&pressure, &millis);
+	float altitude = 145442.1609 * (1.0 - pow(pressure/LOCAL_PRESSURE, 0.190266436));
 	return altitude;
 }
 
-void get_pressure(float *pressure) {
+void get_pressure(float *pressure, float *millis) {
 	// first need to transmit a '0\r\n'
 	// so that the script knows to send a value
 	// need the \n since script uses readline() and searches for \n termination
@@ -519,25 +525,54 @@ void get_pressure(float *pressure) {
 	HAL_UART_Transmit(&huart2, startMessage, sizeof(startMessage), timeout);
 
 	// now receive input from script
-	uint16_t max_loop_count = 10;
+	uint16_t max_loop_count = 50;
 	uint16_t loop_count = 0;
 
-	uint8_t rxBuf[10]; // buffer of 10 chars
+	uint8_t timeBuf[25]; // buffer of 25 chars
+	uint8_t rxBuf[25];
 	uint8_t rxCurrent; // current receive char
 	uint8_t rxIndex = 0;
 
 	int done = 0;
+	uint8_t processAlt = 0;
+
 	while (loop_count < max_loop_count && !done) {
 		HAL_UART_Receive(&huart2, (uint8_t*) &rxCurrent, 1, timeout);
-		if (rxCurrent != '\n' && rxIndex < sizeof(rxBuf)) {
-			rxBuf[rxIndex++] = rxCurrent;
-		} else {
-			// convert to uint32_t as data_raw_pressure
-			data_raw_pressure = (uint32_t) (atoi((char *) rxBuf));
+
+		if (rxCurrent == 'A'){
+			processAlt = 1;
+			*millis = (((float) (atof((char *) timeBuf))) * 1000);
+			memset(timeBuf, 0, sizeof(timeBuf));
+			rxIndex = 0;
+		}
+		else if (rxCurrent == '\n'){
+			data_raw_pressure = (uint32_t) (atof((char *) rxBuf));
 			*pressure = (float) data_raw_pressure;
 			memset(rxBuf, 0, sizeof(rxBuf));
 			done = 1;
+			break;
 		}
+		else if (rxIndex >= 25){
+			break;
+		}
+		else{
+			if (!processAlt){
+				timeBuf[rxIndex++] = rxCurrent;
+			}
+			else{
+				rxBuf[rxIndex++] = rxCurrent;
+			}
+		}
+
+//		if (rxCurrent != '\n' && rxIndex < sizeof(rxBuf)) {
+//			rxBuf[rxIndex++] = rxCurrent;
+//		} else {
+//			// convert to uint32_t as data_raw_pressure
+//			data_raw_pressure = (uint32_t) (atoi((char *) rxBuf));
+//			*pressure = (float) data_raw_pressure;
+//			memset(rxBuf, 0, sizeof(rxBuf));
+//			done = 1;
+//		}
 		__HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF | UART_CLEAR_NEF | UART_CLEAR_PEF | UART_CLEAR_FEF);
 		loop_count++;
 	}
