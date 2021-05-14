@@ -412,15 +412,15 @@ void Tx_setup(){
 
 	//set pa config
 	struct sx126x_pa_cfg_params_s *params = malloc(sizeof(sx126x_pa_cfg_params_t));
-	params->pa_duty_cycle=2;
-	params->hp_max=3;
+	params->pa_duty_cycle=4;
+	params->hp_max=7;
 	params->device_sel=0;
 	params->pa_lut=1;
 	sx126x_set_pa_cfg(&hspi, params);
 	free(params);
 
 	//set tx params
-	int8_t power = 14;
+	int8_t power = 22;
 	sx126x_set_tx_params(&hspi, power, SX126X_RAMP_200_US);
 
 	//set buffer base address
@@ -587,15 +587,15 @@ void Rx_setup(){
 
 	//set pa config
 	struct sx126x_pa_cfg_params_s *params = malloc(sizeof(sx126x_pa_cfg_params_t));
-	params->pa_duty_cycle=2;
-	params->hp_max=3;
+	params->pa_duty_cycle=4;
+	params->hp_max=7;
 	params->device_sel=0;
 	params->pa_lut=1;
 	sx126x_set_pa_cfg(&hspi, params);
 	free(params);
 
 	//set tx params
-	int8_t power = 14;
+	int8_t power = 22;
 	sx126x_set_tx_params(&hspi, power, SX126X_RAMP_200_US);
 
 	//set buffer base address
