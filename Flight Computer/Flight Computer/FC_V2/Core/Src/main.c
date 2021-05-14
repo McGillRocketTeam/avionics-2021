@@ -99,10 +99,12 @@ float alt_meas;
 float alt_ground = 0;
 float t_previous_loop, t_previous_buzz;
 float average_gradient;
+float alt_filtered = 0;
 
 uint8_t apogee_reached = 0;
 uint8_t inFlight = 0;
 uint8_t main_deployed = 0;
+uint8_t stage = 0;
 
 uint32_t count = 0;
 uint8_t currElem = 0;
@@ -397,6 +399,8 @@ int main(void)
 #endif
   }
 
+  stage = 1;
+
   // Launched -> Wait for apogee
   // Set flight indicator
   inFlight = 1;
@@ -428,11 +432,13 @@ int main(void)
 	  else{
 		  numNVals = 0;
 	  }
+
     HAL_Delay(15);
   }
 
   // At apogee -> Deploy drogue
   drogue_alt = altitude;
+
 #ifdef DEBUG_MODE
   sprintf((char *)msg_buffer, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
@@ -479,6 +485,8 @@ int main(void)
     alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
     HAL_Delay(50);
   }
+
+  stage = 3;
 
   // At main deployment altitude -> Deploy main
 #ifdef DEBUG_MODE
@@ -530,6 +538,8 @@ int main(void)
     HAL_Delay(15);
   }
 
+  stage = 4;
+
   // Stop the timer from interrupting and enter while loop
   HAL_TIM_Base_Stop_IT(&htim2);
 
@@ -563,8 +573,8 @@ int main(void)
 	// Format:
 	//	S,ACCx,ACCy,ACCz,MAGx,MAGy,MAGz,PRESSURE,LAT,LONG,HOUR,MIN,SEC,SUBSEC,E\n
 	//	S,3.2, 3.2, 3.2, 3.2, 3.2, 3.2, 4.2,    ,3.7,3.7, 2,   2,  2,  2,     E
-	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
-			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,%u,E\n",
+			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 
 	// Transmit via radio
 	irq_radio = radio_tx_1(tx_buffer, strlen((char const *)tx_buffer));
@@ -1414,8 +1424,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// Check if not reached 7 iterations (1.4s)
 			if (currTask < 7){
 				// Format string -- no GPS
-				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,N,N,%02hu,%02hu,%02hu,%02hu,E\n",
-							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,N,N,%02hu,%02hu,%02hu,%02hu,%u,E\n",
+							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 			}
 
 			else {
@@ -1426,8 +1436,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				radio_tx_2(irq_radio);
 
 				// Format string -- with GPS
-				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,E\n",
-							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,%u,E\n",
+							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 
 #ifdef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
