@@ -99,10 +99,12 @@ float alt_meas;
 float alt_ground = 0;
 float t_previous_loop, t_previous_buzz;
 float average_gradient;
+float alt_filtered = 0;
 
 uint8_t apogee_reached = 0;
 uint8_t inFlight = 0;
 uint8_t main_deployed = 0;
+uint8_t stage = 0;
 
 uint32_t count = 0;
 uint8_t currElem = 0;
@@ -293,7 +295,7 @@ int main(void)
   main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
 
   // Send special event to ground station : "J,event#,voltage_input,voltage_drogue,voltage_main,continuity_drogue_1,continuity_drogue_2,continuity_main_1,continuity_main_2,E"
-  sprintf((char *)msg_buffer, "J,0,%01.2f,%01.2f,%01.2f,%hu,%hu,%hu,%hu,0,E\n", vsense_input, vsense_drogue, vsense_main, drogue_cont_1, drogue_cont_2, main_cont_1, main_cont_2);
+  sprintf((char *)msg_buffer, "J,0,%01.2f,%01.2f,%01.2f,%hu,%hu,%hu,%hu,E\n", vsense_input, vsense_drogue, vsense_main, drogue_cont_1, drogue_cont_2, main_cont_1, main_cont_2);
   irq_radio = radio_tx_1(msg_buffer, strlen((char const *)msg_buffer));
   HAL_Delay(1400);
   radio_tx_2(irq_radio);
@@ -367,9 +369,7 @@ int main(void)
 
   // ---------- START OF EJECTION CODE ----------
   float altitude = 0;
-  float main_alt = 0;
-  float drogue_alt = 0;
-  float alt_filtered = 0;
+
 
   // Get ground-level pressure and set as bias
   for (uint16_t i = 0; i < ALT_MEAS_AVGING; i++){
@@ -386,16 +386,18 @@ int main(void)
   // Waiting for launch
   // TODO: Replace 500 by the actual value
   while(alt_filtered < 500){							// Waiting to launch
-	  altitude = getAltitude();
-	  alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
+	altitude = getAltitude();
+	alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
 #ifdef DEBUG_MODE
-	  sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
-	  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
-	  HAL_Delay(50);
+	sprintf((char *)msg_buffer, "Filtered Alt =  %hu\n\n", (uint16_t)alt_filtered);
+	HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
+	HAL_Delay(700);
 #else
-	  HAL_Delay(15);
+	HAL_Delay(15);
 #endif
   }
+
+  stage = 1;
 
   // Launched -> Wait for apogee
   // Set flight indicator
@@ -428,11 +430,12 @@ int main(void)
 	  else{
 		  numNVals = 0;
 	  }
-    HAL_Delay(15);
+	  HAL_Delay(15);
   }
 
-  // At apogee -> Deploy drogue
-  drogue_alt = altitude;
+  stage = 2;
+
+// At apogee -> Deploy drogue
 #ifdef DEBUG_MODE
   sprintf((char *)msg_buffer, "---------- AT APOGEE - DEPLOYING DROGUE AT %hu ft ----------\n", (uint16_t)altitude);
   HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
@@ -440,10 +443,6 @@ int main(void)
   // Indicate status thru LED
   HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 #endif
-
-  // Pause telemetry transmission
-  HAL_TIM_Base_Stop_IT(&htim2);
-  radio_tx_2(irq_radio);
 
   // Deploy drogue
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_SET);
@@ -456,29 +455,19 @@ int main(void)
   drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
   main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
   main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
-  
-  // Send special event to ground station : "J,event#,voltage_input,voltage_drogue,voltage_main,continuity_drogue_1,continuity_drogue_2,continuity_main_1,continuity_main_2,alt,E"
-  sprintf((char *)msg_buffer, "J,1,%01.2f,%01.2f,%01.2f,%hu,%hu,%hu,%hu,%05.2f,E\n", vsense_input, vsense_drogue, vsense_main, drogue_cont_1, drogue_cont_2, main_cont_1, main_cont_2, drogue_alt);
-  irq_radio = radio_tx_1(msg_buffer, strlen((char const *)msg_buffer));
-#ifdef DEBUG_MODE
-  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
-#endif
-  HAL_Delay(TELEMETRY_DELAY);
-
-  // Turn off drogue
+  HAL_Delay(DROGUE_DELAY);
   HAL_GPIO_WritePin(Relay_Drogue_1_GPIO_Port, Relay_Drogue_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Drogue_2_GPIO_Port, Relay_Drogue_2_Pin, GPIO_PIN_RESET);
-  radio_tx_2(irq_radio);
 
-  // Restart telemetry transmission
-  HAL_TIM_Base_Start_IT(&htim2);
-  
+
   // Wait for main deployment altitude
   while (alt_filtered > MAIN_DEPLOYMENT){
     altitude = getAltitude();
     alt_filtered = runAltitudeMeasurements(HAL_GetTick(), altitude);
-    HAL_Delay(50);
+    HAL_Delay(15);
   }
+
+  stage = 3;
 
   // At main deployment altitude -> Deploy main
 #ifdef DEBUG_MODE
@@ -488,11 +477,6 @@ int main(void)
   // Indicate status thru LED
   HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 #endif
-  main_alt = altitude;
-
-  // Pause telemetry transmission
-  HAL_TIM_Base_Stop_IT(&htim2);
-  radio_tx_2(irq_radio);
 
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_SET);
@@ -504,22 +488,9 @@ int main(void)
   drogue_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Drogue_Continuity_2_GPIO_Port, Drogue_Continuity_2_Pin);
   main_cont_1 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_1_GPIO_Port, Main_Continuity_1_Pin);
   main_cont_2 = (uint8_t)HAL_GPIO_ReadPin(Main_Continuity_2_GPIO_Port, Main_Continuity_2_Pin);
-  
-  // Send special event to ground station : "J,event#,voltage_input,voltage_drogue,voltage_main,continuity_drogue_1,continuity_drogue_2,continuity_main_1,continuity_main_2,alt,E"
-  sprintf((char *)msg_buffer, "J,2,%01.2f,%01.2f,%01.2f,%hu,%hu,%hu,%hu,%hu,E\n", vsense_input, vsense_drogue, vsense_main, drogue_cont_1, drogue_cont_2, main_cont_1, main_cont_2, main_alt);
-  irq_radio = radio_tx_1(msg_buffer, strlen((char const *)msg_buffer));
-#ifdef DEBUG_MODE
-  HAL_UART_Transmit(&huart1, msg_buffer, strlen((char const *)msg_buffer), 1000);
-#endif
-  HAL_Delay(TELEMETRY_DELAY);
-
-  // Turn off main
+  HAL_Delay(MAIN_DELAY);
   HAL_GPIO_WritePin(Relay_Main_1_GPIO_Port, Relay_Main_1_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Relay_Main_2_GPIO_Port, Relay_Main_2_Pin, GPIO_PIN_RESET);
-  radio_tx_2(irq_radio);
-
-  // Restart telemetry transmission
-  HAL_TIM_Base_Start_IT(&htim2);
 
   // Landing detection
   while (count < LANDING_SAMPLES) {
@@ -529,6 +500,8 @@ int main(void)
     	count = 0;
     HAL_Delay(15);
   }
+
+  stage = 4;
 
   // Stop the timer from interrupting and enter while loop
   HAL_TIM_Base_Stop_IT(&htim2);
@@ -563,8 +536,8 @@ int main(void)
 	// Format:
 	//	S,ACCx,ACCy,ACCz,MAGx,MAGy,MAGz,PRESSURE,LAT,LONG,HOUR,MIN,SEC,SUBSEC,E\n
 	//	S,3.2, 3.2, 3.2, 3.2, 3.2, 3.2, 4.2,    ,3.7,3.7, 2,   2,  2,  2,     E
-	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,E\n",
-			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+	sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%04hu,%u,E\n",
+			acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 
 	// Transmit via radio
 	irq_radio = radio_tx_1(tx_buffer, strlen((char const *)tx_buffer));
@@ -1414,8 +1387,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 			// Check if not reached 7 iterations (1.4s)
 			if (currTask < 7){
 				// Format string -- no GPS
-				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,N,N,%02hu,%02hu,%02hu,%02hu,E\n",
-							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,N,N,%02hu,%02hu,%02hu,%02hu,%u,E\n",
+							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 			}
 
 			else {
@@ -1426,8 +1399,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 				radio_tx_2(irq_radio);
 
 				// Format string -- with GPS
-				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,E\n",
-							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds);
+				sprintf((char *)tx_buffer, "S,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%03.2f,%04.2f,%03.7f,%03.7f,%02hu,%02hu,%02hu,%02hu,%u,E\n",
+							acceleration[0],acceleration[1],acceleration[2],angular_rate[0],angular_rate[1],angular_rate[2],pressure,latitude,longitude,stimestructureget.Hours,stimestructureget.Minutes,stimestructureget.Seconds,(uint16_t)stimestructureget.SubSeconds, stage);
 
 #ifdef DEBUG_MODE
 				HAL_UART_Transmit(&huart1, tx_buffer, strlen((char const *)tx_buffer), 1000);
