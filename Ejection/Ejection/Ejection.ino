@@ -7,6 +7,7 @@
 // are compiled. EEPROM is currently not used. uncomment as necessary.
 //#define EEPROMfunctions
 #define DEBUG_MODE
+//#define BYPASS_ALL
 
 #ifdef EEPROMfunctions
 #include <EEPROM.h>
@@ -33,8 +34,14 @@
 #define LOCAL_PRESSURE          101200  // Pa
 #define MAIN_DEPLOYMENT         1500    // ft
 #define THRESHOLD_ALTITUDE      10000   // ft
+
+#ifdef DEBUG_MODE                       // multimeter needs more time to get accurate current reading
+#define DROGUE_DELAY            1500    // ms
+#define MAIN_DELAY              1500    // ms
+#else
 #define DROGUE_DELAY            500     // ms
 #define MAIN_DELAY              500     // ms
+#endif
 
 Adafruit_BME280 bme; // I2C
 
@@ -107,11 +114,82 @@ void setup() {
   }
   alt_ground = alt_ground/ALT_MEAS_AVGING; //average of alt readings
 
+#ifdef DEBUG_MODE
+  Serial.print("----------- GROUND ALTITUDE: ");
+  Serial.print(alt_ground);
+  Serial.println(" -----------");
+#endif
+
+#ifdef BYPASS_ALL
+  delay(1000);
+  
+  Serial.println("-------- LAUNCHED --------\n");
+  for (int i = 0 ; i < 1; i++) { // beep once
+      tone(buzzer, BUZZER_FREQ);
+      delay(250);
+      noTone(buzzer);
+  }
+
+  delay(2000);
+  
+  Serial.print("----------- AT APOGEE - DEPLOYING DROGUE AT ");
+  Serial.print(altitude);
+  Serial.println(" ft -----------\n");
+
+  for (int i = 0 ; i < 2; i++) { // beep twice
+      tone(buzzer, BUZZER_FREQ);
+      delay(250);
+      noTone(buzzer);
+      delay(250);
+  }
+  // drogue deployment
+  digitalWrite(drogue1, HIGH);
+  digitalWrite(drogue2, HIGH);
+  delay(DROGUE_DELAY);
+  digitalWrite(drogue1, LOW);
+  digitalWrite(drogue2, LOW);
+
+  delay(2000);
+  
+  Serial.print("----------- DEPLOYING MAIN AT ");
+  Serial.print(altitude);
+  Serial.println(" ft -----------\n");
+
+  for (int i = 0 ; i < 3; i++) { // beep thrice
+      tone(buzzer, BUZZER_FREQ);
+      delay(150);
+      noTone(buzzer);
+      delay(150);
+  }
+
+  // main deployment
+  digitalWrite(main1, HIGH);
+  digitalWrite(main2, HIGH);
+  delay(MAIN_DELAY);
+  digitalWrite(main1, LOW);
+  digitalWrite(main2, LOW);
+
+  delay(2000);
+
+  Serial.println("-------- LANDED --------\n");
+  for (int i = 0 ; i < 4; i++) { // beep thrice, long
+      tone(buzzer, BUZZER_FREQ);
+      delay(1500);
+      noTone(buzzer);
+      delay(1500);
+  }
+
+  while (1);
+#endif  // BYPASS_ALL
+  
   // wait for launch
   while(alt_filtered < LAUNCH_THRESHOLD){
     altitude = getAltitude();
     alt_filtered = runAltitudeMeasurements(millis(), altitude);
 #ifdef DEBUG_MODE
+    Serial.print("altitude read = ");
+    Serial.print(altitude);
+    Serial.print(" -- ");
     Serial.print("filtered altitude = ");
     Serial.print(alt_filtered);
     Serial.println();
@@ -231,7 +309,14 @@ void setup() {
 }
 
 void loop() {
-  // do nothing
+#ifdef DEBUG_MODE
+  // blink built-in LED
+  digitalWrite(led, HIGH);
+  delay(500);
+  digitalWrite(led, LOW);
+  delay(500);
+#endif
+  // otherwise do nothing
 }
 
 // runs the following:
@@ -254,7 +339,7 @@ float runAltitudeMeasurements(uint32_t currTick, float currAlt) {
 float filterAltitude(float alt, float deltaT){
   // the following formulas comes from https://en.wikipedia.org/wiki/Low-pass_filter
   // section: Discrete-time realization, simple IIR filter
-  float alpha = deltaT / (cutoff + deltaT);
+  float alpha = (float) (deltaT / (cutoff + deltaT));
   return (alt * alpha + (1 - alpha) * alt_previous[NUM_MEAS_REG - 1]);
 }
 
