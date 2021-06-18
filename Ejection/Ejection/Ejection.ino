@@ -35,6 +35,9 @@
 #define MAIN_DEPLOYMENT         1500    // ft
 #define THRESHOLD_ALTITUDE      10000   // ft
 
+#define TIME_LOCK_APOGEE        10000   // ms (10 s)
+#define TIME_LOCK_SLEEP         600000  // ms (10 min)
+
 #ifdef DEBUG_MODE                       // multimeter needs more time to get accurate current reading
 #define DROGUE_DELAY            1500    // ms
 #define MAIN_DELAY              1500    // ms
@@ -54,6 +57,7 @@ float alt_filtered = 0;
 uint32_t prevTick = 0;
 uint32_t count = 0; // for landing detection
 uint8_t currElem = 0;
+uint32_t time_launch = 0;
 
 // arrays to store previous data
 float alt_previous[NUM_MEAS_REG];
@@ -196,7 +200,8 @@ void setup() {
 #endif
     delay(50);
   }
-
+  time_launch = millis(); // set current time as launched time
+  
   // moved to apogee detection stage
   stage = 1;
   in_flight = 1;
@@ -219,7 +224,7 @@ void setup() {
     alt_filtered = runAltitudeMeasurements(millis(), altitude);
     fittedSlope = LSLinRegression();
 
-    if (fittedSlope < 0) {
+    if (millis() - time_launch > TIME_LOCK_APOGEE && fittedSlope < 0) {
       numNVals += 1;
       if (numNVals > NUM_DESCENDING_SAMPLES) {
         break;
@@ -287,7 +292,7 @@ void setup() {
   while (count < LANDING_SAMPLES) {
     altitude = getAltitude();
     alt_filtered = runAltitudeMeasurements(millis(), altitude);
-    if (alt_filtered - alt_previous[NUM_MEAS_REG - 1] < LANDING_THRESHOLD)
+    if (alt_filtered - alt_previous[NUM_MEAS_REG - 1] < LANDING_THRESHOLD && millis() - time_launch > TIME_LOCK_SLEEP)
       count++;
     else
       count = 0;
