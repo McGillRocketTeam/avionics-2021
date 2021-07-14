@@ -1,0 +1,11 @@
+main.c:84:5:main	16	static
+main.c:239:6:SystemClock_Config	160	static
+main.c:289:13:MX_RTC_Init	72	static
+main.c:332:13:MX_TIM16_Init	8	static
+main.c:364:13:MX_USART2_UART_Init	8	static
+main.c:399:13:MX_GPIO_Init	48	static
+main.c:439:6:HAL_RTC_AlarmAEventCallback	16	static
+main.c:460:6:HAL_RTCEx_AlarmBEventCallback	16	static
+main.c:483:6:HAL_TIM_PeriodElapsedCallback	24	static
+main.c:510:6:pollAlarmInterruptFlag	8	static
+main.c:522:6:Error_Handler	8	static

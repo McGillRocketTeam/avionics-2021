@@ -1,0 +1,6 @@
+lsm6dsr_read_data_polling.c:79:14:lsm6dsr_init	40	static
+lsm6dsr_read_data_polling.c:127:6:get_acceleration	40	static
+lsm6dsr_read_data_polling.c:152:6:get_angvelocity	40	static
+lsm6dsr_read_data_polling.c:280:16:platform_write	40	static
+lsm6dsr_read_data_polling.c:301:16:platform_read	40	static
+lsm6dsr_read_data_polling.c:331:13:platform_delay	16	static

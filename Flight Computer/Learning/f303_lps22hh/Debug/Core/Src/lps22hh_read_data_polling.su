@@ -1,0 +1,6 @@
+lps22hh_read_data_polling.c:65:14:lps22hh_init	40	static
+lps22hh_read_data_polling.c:100:6:get_pressure	40	static
+lps22hh_read_data_polling.c:116:6:get_temperature	40	static
+lps22hh_read_data_polling.c:201:16:platform_write	40	static
+lps22hh_read_data_polling.c:221:16:platform_read	40	static
+lps22hh_read_data_polling.c:248:13:platform_delay	16	static
