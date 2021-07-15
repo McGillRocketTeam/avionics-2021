@@ -24,7 +24,7 @@
 
 #define NSS 10        //SX126X SPI device select, active low
 
-SX1262 device;
+SX1262 device; // Create instance of SX1262 class
 
 command_status_t command_status;
 
@@ -33,22 +33,23 @@ uint16_t preamble_length = 12;
 uint8_t tx_address = 0x00;
 uint8_t rx_address = 0x00;
 
-uint8_t send_data[5] = {0};
 uint16_t value = 1;
 uint16_t irq;
+uint16_t irq_status;
 uint8_t device_status;
+char data_string[] = "24.42;32.3;34.32";
+uint8_t string_length = sizeof(data_string);
 
 #define irq_set_mask                                0b1000000001  // Set mask to detect TX/RX timeout and TxDone
-uint8_t number = 250;
+
 
 void setup() {
-  // Initialize BUSY line and SS line
 
   device.begin(NSS,BUSY,RESET,DIO1,ANT_SW); // Store pin ports for SX1262 class
   SPI.begin();
   Serial.begin(9600);
   
-  delay(100);
+  delay(10);
 
   // Begin TX setup
 /*
@@ -133,7 +134,7 @@ void setup() {
     Serial.println("setPaConfig Failed");
   }
 
-  command_status = device.setTxParams(PLUS_3_dBm, SX1262_PA_RAMP_200U); // Set Tx parameters
+  command_status = device.setTxParams(PLUS_14_dBm, SX1262_PA_RAMP_200U); // Set Tx parameters
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setTxParams Failed");
   }
@@ -143,12 +144,12 @@ void setup() {
     Serial.println("setBufferBaseAddress Failed");
   }
   
-  command_status = device.setLoRaModulationParams(LORA_SF7, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
+  command_status = device.setLoRaModulationParams(LORA_SF9, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setLoRaModulationParams Failed");
   }
   
-  command_status = device.setLoRaPacketParams(preamble_length, 0, 0xFF, 0, 0); // Set variable length, payload size of 5 bytes,  CRC off, and invert_iq is standard
+  command_status = device.setLoRaPacketParams(preamble_length, 0, 0xFF, 1, 0); // Set variable length, payload size of 5 bytes,  CRC off, and invert_iq is standard
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setLoRaPacketParams Failed");
   }
@@ -162,26 +163,28 @@ void setup() {
 }
 
 void loop() {
- delay(2000);
-// ------------- Simple TX -----------------------------
-  for(int i = 0; i< 5; i++) {
-    send_data[i] = i+value;
-  }
+ delay(500);
+// ------------- Simple TX ----------------------------- 
 
-  command_status = device.setLoRaPacketParams(preamble_length, 0, 5, 0, 0); // Set variable length, payload size of 5 bytes,  CRC off, and invert_iq is standard
-  if (command_status != COMMAND_SUCCESS) {
-    Serial.println("setLoRaPacketParams Failed");
-  }
-  
+  Serial.println(data_string);
+
   device.clearIrqStatus(SX1262_IRQ_TX_DONE | SX1262_IRQ_TIMEOUT);
-  
-  // Write new array to buffer
-  command_status = device.writeBuffer(0,send_data,5);
+
+  command_status = device.writeBuffer(0,(uint8_t*)data_string,string_length);
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("writeBuffer Failed");
   }
   
-  command_status = device.setTx(5000);
+  command_status = device.setLoRaPacketParams(preamble_length, 0, string_length, 1, 0); // Set variable length, payload size of 5 bytes,  CRC off, and invert_iq is standard
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setLoRaPacketParams Failed");
+    device.getIrqStatus(&irq_status);
+    Serial.print("PacketParam IRQ Status: ");
+    Serial.println(irq_status, BIN);
+  }
+  
+  command_status = device.setTx(0x061A80); // 400,000 * 15.625 us = 6.25s
+  delay(1000);
   if (command_status != COMMAND_SUCCESS) {
     Serial.println("setTx Failed");
     Serial.print("Device setTX command status:");
@@ -197,5 +200,47 @@ void loop() {
     device.getIrqStatus(&irq);
   }
   
-  value++;  
+  if ((irq & SX1262_IRQ_TIMEOUT)) {
+    Serial.println("TIMEOUT!");
+  }
+
+  command_status = device.setStandBy(0); // Set device in standby mode, STDBY_RC
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setStandBy Failed");
+  }
+
+  command_status = device.setPacketType(0x01); // Set packet type to LoRa
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setPacketType Failed");
+  }
+
+  command_status = device.setRfFrequency(freqeuncy); // Set RF frequency
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setRfFrequency Failed");
+  }
+
+  command_status = device.setPaConfig(DUTY_CYCLE_17dBm, HP_MAX_14dBm, PA_DEVICESEL_1262); // Set Power Amplifier Config
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setPaConfig Failed");
+  }
+
+  command_status = device.setTxParams(PLUS_14_dBm, SX1262_PA_RAMP_200U); // Set Tx parameters
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setTxParams Failed");
+  }
+  
+  command_status = device.setBufferBaseAddress(tx_address, rx_address);
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setBufferBaseAddress Failed");
+  }
+  
+  command_status = device.setLoRaModulationParams(LORA_SF9, LORA_BW_062, LORA_CR_4_5, 0x00); // No low data optimization
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setLoRaModulationParams Failed");
+  }
+  
+  command_status = device.setDioIrqParams(SX1262_IRQ_ALL,irq_set_mask,SX1262_IRQ_NONE,SX1262_IRQ_NONE);
+  if (command_status != COMMAND_SUCCESS) {
+    Serial.println("setDioIrqParams Failed");
+  }
 }

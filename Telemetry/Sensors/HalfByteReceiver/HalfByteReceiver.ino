@@ -1,3 +1,4 @@
+
 /* 
  * Connections to Teensy 4.0
  * Pins: 16     17     18     19
@@ -50,9 +51,16 @@ uint16_t number_of_crc_errors = 0;
 uint16_t number_of_header_errors = 0;
 uint16_t irq_status;
 uint8_t loop_counter = 0;
-int i = 0;
 unsigned long break_time;
 #define irq_set_mask                                0b1000000011 // Set Mask for TXDone, RXDone and Rx/Tx Timeout
+
+//Halfbyte decoded variables
+uint8_t decoded_size; //size of decoded message
+uint8_t index_decoded;
+uint8_t second_char; //second character encoded in the same char
+uint8_t index_encoded;
+char* received; //char pointer to the decoded message
+
 
 void setup() {
 
@@ -287,11 +295,65 @@ void loop() {
     }
   Serial.println();
   Serial.println("Last Packet Received");
-  Serial.print((char*)last_packet);
+  halfbyteDecode(last_packet, rx_status[0]);
   Serial.println(); 
   
   loop_counter++;
 
 //  sx1262_setup(); 
 //  delay(200);
+}
+
+void halfbyteDecode(uint8_t* buffer, uint8_t size) {
+
+  //Write to serial the encoded message
+  Serial.print("Encoded: ");
+  Serial.println((char*)buffer);
+
+  //Decoded message should be twice the size of the received packet
+  decoded_size = size*2;
+  received = (char*)malloc(decoded_size+1); //malloc the correct size + 1 for \0
+
+  //Decode one char at a time and store in two chars
+  index_decoded = 0;
+  for(index_encoded = 0; index_encoded < size; index_encoded++) {
+
+    second_char = buffer[index_encoded]; //copy char
+    buffer[index_encoded] = buffer[index_encoded] >> 4; //shift right by 4 to isolate 4 MSB
+    second_char = (second_char & 0b00001111); //isolate 4 LSB
+    
+    received[index_decoded] = uncompress(buffer[index_encoded]); //decode the specific first character
+    received[index_decoded + 1] = uncompress(second_char); //decode the specific second character
+    
+    index_decoded += 2; //increment to 2nd later index
+  }
+  
+  received[index_decoded]='\0'; //finish string with \0 to stop printing when serial printing
+  
+  Serial.print("Decoded: ");
+  Serial.println(received);
+}
+
+char uncompress(uint8_t compressed){
+  if (compressed == 0b00001100) {
+    return 's';
+    
+  } else if (compressed == 0b00001101) {
+    return 'e';
+    
+  } else if (compressed == 0b00001010) {
+    return ';';
+    
+  } else if (compressed == 0b00001011) {
+    return ':';
+    
+  } else if (compressed == 0b00001111) {
+    return '.';
+    
+  } else if (compressed == 0b00001110) {
+    return '-';
+    
+  } else {
+    return (char)(compressed + '0');
+  }  
 }

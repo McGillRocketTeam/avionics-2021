@@ -1,0 +1,176 @@
+we are writingTemp: 24.22,Pressure:100737.75,Altitude(BMP,m):149.33,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:35
+
+Temp: 24.22,Pressure:100737.86,Altitude(BMP,m):149.33,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:38
+
+Temp: 24.22,Pressure:100736.86,Altitude(BMP,m):149.41,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:40
+
+Temp: 24.22,Pressure:100736.86,Altitude(BMP,m):149.41,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:42
+
+Temp: 24.22,Pressure:100736.86,Altitude(BMP,m):149.41,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:44
+
+Temp: 24.22,Pressure:100736.27,Altitude(BMP,m):149.46,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:46
+
+Temp: 24.22,Pressure:100736.10,Altitude(BMP,m):149.47,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:48
+
+Temp: 24.22,Pressure:100735.94,Altitude(BMP,m):149.49,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:50
+
+Temp: 24.22,Pressure:100735.34,Altitude(BMP,m):149.53,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:51
+
+Temp: 24.22,Pressure:100735.61,Altitude(BMP,m):149.51,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:54
+
+Temp: 24.22,Pressure:100735.28,Altitude(BMP,m):149.54,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:55
+
+Temp: 24.22,Pressure:100735.20,Altitude(BMP,m):149.55,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:58
+
+Temp: 24.23,Pressure:100735.47,Altitude(BMP,m):149.52,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:5:59
+
+Temp: 24.23,Pressure:100734.97,Altitude(BMP,m):149.57,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:2
+
+Temp: 24.23,Pressure:100735.14,Altitude(BMP,m):149.55,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:3
+
+Temp: 24.23,Pressure:100735.30,Altitude(BMP,m):149.54,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:6
+
+Temp: 24.23,Pressure:100735.14,Altitude(BMP,m):149.55,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:7
+
+Temp: 24.23,Pressure:100735.53,Altitude(BMP,m):149.52,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:10
+
+Temp: 24.23,Pressure:100735.37,Altitude(BMP,m):149.53,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:11
+
+Temp: 24.23,Pressure:100735.80,Altitude(BMP,m):149.50,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:13
+
+Temp: 24.23,Pressure:100735.80,Altitude(BMP,m):149.50,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:16
+
+Temp: 24.23,Pressure:100735.89,Altitude(BMP,m):149.49,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:17
+
+Temp: 24.24,Pressure:100735.66,Altitude(BMP,m):149.51,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:20
+
+Temp: 24.24,Pressure:100735.00,Altitude(BMP,m):149.56,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:21
+
+Temp: 24.24,Pressure:100734.41,Altitude(BMP,m):149.61,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:24
+
+Temp: 24.24,Pressure:100734.50,Altitude(BMP,m):149.61,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:25
+
+Temp: 24.24,Pressure:100734.59,Altitude(BMP,m):149.60,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:27
+
+Temp: 24.25,Pressure:100734.53,Altitude(BMP,m):149.60,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:30
+
+Temp: 24.25,Pressure:100734.42,Altitude(BMP,m):149.61,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:31
+
+Temp: 24.25,Pressure:100734.52,Altitude(BMP,m):149.60,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:33
+
+Temp: 24.25,Pressure:100734.29,Altitude(BMP,m):149.62,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:35
+
+Temp: 24.26,Pressure:100734.39,Altitude(BMP,m):149.61,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:38
+
+Temp: 24.26,Pressure:100733.72,Altitude(BMP,m):149.67,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:39
+
+Temp: 24.26,Pressure:100733.72,Altitude(BMP,m):149.67,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:42
+
+Temp: 24.26,Pressure:100734.05,Altitude(BMP,m):149.64,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:43
+
+Temp: 24.26,Pressure:100733.89,Altitude(BMP,m):149.66,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:45
+
+Temp: 24.26,Pressure:100734.05,Altitude(BMP,m):149.64,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:47
+
+Temp: 24.26,Pressure:100733.72,Altitude(BMP,m):149.67,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:49
+
+Temp: 24.25,Pressure:100733.46,Altitude(BMP,m):149.69,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:51
+
+Temp: 24.25,Pressure:100733.70,Altitude(BMP,m):149.67,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:53
+
+Temp: 24.25,Pressure:100733.59,Altitude(BMP,m):149.68,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:55
+
+Temp: 24.24,Pressure:100733.44,Altitude(BMP,m):149.69,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:6:57
+
+Temp: 24.24,Pressure:100733.34,Altitude(BMP,m):149.70,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:0
+
+Temp: 24.24,Pressure:100732.74,Altitude(BMP,m):149.75,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:1
+
+Temp: 24.24,Pressure:100732.52,Altitude(BMP,m):149.77,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:4
+
+Temp: 24.24,Pressure:100732.84,Altitude(BMP,m):149.74,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:5
+
+Temp: 24.24,Pressure:100733.17,Altitude(BMP,m):149.72,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:8
+
+Temp: 24.24,Pressure:100733.17,Altitude(BMP,m):149.72,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:9
+
+Temp: 24.23,Pressure:100733.41,Altitude(BMP,m):149.70,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:11
+
+Temp: 24.23,Pressure:100733.24,Altitude(BMP,m):149.71,Pitch:-1.69,Roll:8.69,Yaw:0.00,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:14
+
+Temp: 24.23,Pressure:100733.08,Altitude(BMP,m):149.72,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:15
+
+Temp: 24.23,Pressure:100732.48,Altitude(BMP,m):149.77,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:17
+
+Temp: 24.23,Pressure:100732.98,Altitude(BMP,m):149.73,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:19
+
+Temp: 24.23,Pressure:100732.72,Altitude(BMP,m):149.75,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:21
+
+Temp: 24.23,Pressure:100732.66,Altitude(BMP,m):149.76,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:23
+
+Temp: 24.23,Pressure:100732.66,Altitude(BMP,m):149.76,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:25
+
+Temp: 24.23,Pressure:100732.82,Altitude(BMP,m):149.75,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:27
+
+Temp: 24.23,Pressure:100732.82,Altitude(BMP,m):149.75,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:29
+
+Temp: 24.23,Pressure:100732.82,Altitude(BMP,m):149.75,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:31
+
+Temp: 24.23,Pressure:100733.05,Altitude(BMP,m):149.73,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:34
+
+Temp: 24.23,Pressure:100733.05,Altitude(BMP,m):149.73,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:35
+
+Temp: 24.23,Pressure:100733.05,Altitude(BMP,m):149.73,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:38
+
+Temp: 24.23,Pressure:100733.15,Altitude(BMP,m):149.72,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:39
+
+Temp: 24.23,Pressure:100733.15,Altitude(BMP,m):149.72,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:41
+
+Temp: 24.23,Pressure:100733.41,Altitude(BMP,m):149.70,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:43
+
+Temp: 24.24,Pressure:100733.34,Altitude(BMP,m):149.70,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:45
+
+Temp: 24.24,Pressure:100733.17,Altitude(BMP,m):149.72,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:47
+
+Temp: 24.24,Pressure:100733.57,Altitude(BMP,m):149.68,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:49
+
+Temp: 24.24,Pressure:100733.23,Altitude(BMP,m):149.71,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:51
+
+Temp: 24.24,Pressure:100733.23,Altitude(BMP,m):149.71,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:53
+
+Temp: 24.24,Pressure:100733.34,Altitude(BMP,m):149.70,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:55
+
+Temp: 24.24,Pressure:100732.84,Altitude(BMP,m):149.74,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:57
+
+Temp: 24.24,Pressure:100732.67,Altitude(BMP,m):149.76,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:7:59
+
+Temp: 24.24,Pressure:100732.41,Altitude(BMP,m):149.78,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:1
+
+Temp: 24.24,Pressure:100732.58,Altitude(BMP,m):149.77,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:3
+
+Temp: 24.24,Pressure:100732.19,Altitude(BMP,m):149.80,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:5
+
+Temp: 24.23,Pressure:100731.83,Altitude(BMP,m):149.83,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:7
+
+Temp: 24.23,Pressure:100731.40,Altitude(BMP,m):149.86,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:9
+
+Temp: 24.23,Pressure:100731.66,Altitude(BMP,m):149.84,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:11
+
+Temp: 24.22,Pressure:100731.41,Altitude(BMP,m):149.86,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:14
+
+Temp: 24.22,Pressure:100731.73,Altitude(BMP,m):149.84,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:15
+
+Temp: 24.22,Pressure:100731.64,Altitude(BMP,m):149.84,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:18
+
+Temp: 24.22,Pressure:100731.88,Altitude(BMP,m):149.82,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:19
+
+Temp: 24.22,Pressure:100731.97,Altitude(BMP,m):149.82,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:22
+
+Temp: 24.21,Pressure:100731.70,Altitude(BMP,m):149.84,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:23
+
+Temp: 24.21,Pressure:100731.45,Altitude(BMP,m):149.86,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:26
+
+Temp: 24.21,Pressure:100730.85,Altitude(BMP,m):149.91,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:28
+
+Temp: 24.21,Pressure:100730.76,Altitude(BMP,m):149.92,Pitch:-1.62,Roll:8.25,Yaw:0.25,Latitude:0,Longitude:0,Altitude(GPS,m):0,Time:2:8:30
+

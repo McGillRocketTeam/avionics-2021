@@ -216,6 +216,8 @@ void loop() {
   }
 
   device.getIrqStatus(&irq_status);
+  Serial.print("IRQ: ");
+  Serial.println(irq_status);
   break_time = millis();
   while( (!(irq_status & SX1262_IRQ_TIMEOUT)) && (!(irq_status & SX1262_IRQ_RX_DONE)) ){
     device.getIrqStatus(&irq_status);

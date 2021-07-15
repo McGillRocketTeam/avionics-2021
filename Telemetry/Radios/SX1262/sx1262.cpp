@@ -8,6 +8,7 @@
 
 #include <sx1262.h>
 #include <SPI.h>
+#include "Arduino.h"
 
 /* 
     ============================= Setup ================================
@@ -35,21 +36,24 @@ void SX1262::begin(uint8_t NSS, uint8_t BUSY, uint8_t RESET, uint8_t DIO1, uint8
     delay(50);
     digitalWrite(_RESET,1);
     delay(50);
-    while(digitalRead(_BUSY));
 }
 
 
 /*
     ================================ Transmit/Receive Functions ==================
 */
-command_status_t SX1262::receiveContinuous(uint8_t *received_data, uint16_t length, uint8_t offset) {
+command_status_t SX1262::receiveContinuous(uint8_t *received_data, uint8_t length, uint8_t offset) {
 
     uint16_t irq_status;
     getIrqStatus(&irq_status);
-  
+    
     if( irq_status & SX1262_IRQ_RX_DONE ) {
         clearIrqStatus(SX1262_IRQ_RX_DONE);
-        return readBuffer(offset, length, received_data);
+        if ((irq_status & SX1262_IRQ_HEADER_ERR) || (irq_status & SX1262_IRQ_CRC_ERR)) {
+            clearIrqStatus(SX1262_IRQ_HEADER_ERR | SX1262_IRQ_CRC_ERR);
+            return COMMAND_ERROR_FLAG;
+        }
+        return readBuffer(offset, length, received_data, true);
     }
     return COMMAND_ERROR_FLAG;
 }
@@ -61,29 +65,37 @@ command_status_t SX1262::receiveContinuous(uint8_t *received_data, uint16_t leng
 command_status_t SX1262::writeCommand(uint8_t opcode, uint8_t *cmd_buffer, uint16_t cmd_len) {
     command_status_t status = COMMAND_SUCCESS;
 
-    SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 
-    while(digitalRead(_BUSY));
+    // while(digitalRead(_BUSY));
+    if (isBusy()) {
+        return COMMAND_BUSY_TIMEOUT;
+    }
 
     digitalWrite(_NSS, LOW);
     SPI.transfer(opcode);
     uint8_t cmd_status = 0; 
     for (uint8_t i = 0; i < cmd_len; i++) {
-        cmd_status = SPI.transfer(cmd_buffer[i]);
+        cmd_status = SPI.transfer(cmd_buffer[i]); 
     }
     if( ((cmd_status & 0b00001110) == SX1262_STATUS_CMD_TIMEOUT) ||
         ((cmd_status & 0b00001110) == SX1262_STATUS_CMD_ERROR) ||
         ((cmd_status & 0b00001110) == SX1262_STATUS_CMD_FAILED) ||
         (cmd_status == 0x00) || (cmd_status == 0xFF)) {
-            //Serial.println(cmd_status, BIN);
-        status = COMMAND_SPI_FAILED;
+            Serial.println("Command Error!");
+            for (uint8_t i = 0; i < cmd_len; i++) {
+                Serial.print(cmd_buffer[i]);
+                Serial.print(" ");
+            }
+            Serial.println();
+            Serial.println(cmd_status, BIN);
+            Serial.println(cmd_status);
+            status = COMMAND_SPI_FAILED;
     } 
+    
     digitalWrite(_NSS, HIGH);
-
     SPI.endTransaction();
-
     delay(10);
-
     return status;
     
 }
@@ -91,9 +103,12 @@ command_status_t SX1262::writeCommand(uint8_t opcode, uint8_t *cmd_buffer, uint1
 command_status_t SX1262::readCommand(uint8_t opcode, uint8_t *cmd_buffer, uint16_t cmd_len, uint8_t *read_buffer, uint8_t read_offset, bool single_val, bool get_status) {
     command_status_t status = COMMAND_SUCCESS;
     
-    SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 
-    while(digitalRead(_BUSY));
+    // while(digitalRead(_BUSY));
+    if (isBusy()) {
+        return COMMAND_BUSY_TIMEOUT;
+    }
 
     digitalWrite(_NSS, LOW);
     SPI.transfer(opcode);
@@ -101,7 +116,9 @@ command_status_t SX1262::readCommand(uint8_t opcode, uint8_t *cmd_buffer, uint16
     for (uint8_t i = 0; i < cmd_len; i++) {
         if (i==0) {
             if (get_status) {
-                *read_buffer = SPI.transfer(cmd_buffer[i]);
+                read_buffer[i] = SPI.transfer(cmd_buffer[i]);
+                cmd_status = read_buffer[i];
+                continue;
             }
             cmd_status = SPI.transfer(cmd_buffer[i]); // Get Status (first byte)
         } else if (single_val){
@@ -122,12 +139,10 @@ command_status_t SX1262::readCommand(uint8_t opcode, uint8_t *cmd_buffer, uint16
         (cmd_status == 0x00) || (cmd_status == 0xFF)) {
         status = COMMAND_SPI_FAILED;
     } 
+
     digitalWrite(_NSS, HIGH);
-
     SPI.endTransaction();
-
     delay(10);
-
     return status;
 }
 /* 
@@ -224,12 +239,13 @@ command_status_t SX1262::writeBuffer(uint8_t offset, uint8_t *tx_buf, uint8_t si
     return writeCommand(SX1262_WRITE_BUFFER, cmd_buf, buf_size);
 }
 
-command_status_t SX1262::readBuffer(uint8_t offset, uint8_t size, uint8_t *received_buf) {
+command_status_t SX1262::readBuffer(uint8_t offset, uint8_t size, uint8_t *received_buf, bool checkStatus) {
     uint8_t rx_status[2] = {0};
-    getRXBufferStatus(rx_status); // Update size and offset for new packet
-    size = rx_status[0];
-    offset = rx_status[1];
-
+    if (checkStatus) {
+        getRXBufferStatus(rx_status); // Update size and offset for new packet
+        size = rx_status[0];
+        offset = rx_status[1];
+    }
     if (size > 254) {
         return COMMAND_BUFFER_ERROR;
     }
@@ -317,13 +333,14 @@ command_status_t SX1262::setLoRaModulationParams(uint8_t s_factor, uint8_t bandw
 }
 
 command_status_t SX1262::setLoRaPacketParams(uint16_t preamble_length, uint8_t header, uint8_t payload_length, uint8_t crc, uint8_t invert_iq) {
-    uint8_t cmd_buf[6];
+    uint8_t cmd_buf[6] = {0};
     cmd_buf[0] = ( uint8_t )( ( preamble_length >> 8 ) & 0xFF );    // bit 15 to 8
     cmd_buf[1] = ( uint8_t )( preamble_length & 0xFF );             // bit 7 to 0
     cmd_buf[2] = header;
     cmd_buf[3] = payload_length;
     cmd_buf[4] = crc;
     cmd_buf[5] = invert_iq;
+    
     return writeCommand(SX1262_SET_PACKET_PARAMS, cmd_buf, 6);
 }
 
@@ -344,8 +361,8 @@ command_status_t SX1262::getStatus(uint8_t *status) {
 }
 
 command_status_t SX1262::getRXBufferStatus(uint8_t *rx_status) {
-    uint8_t cmd_buf[3] = {SX1262_CMD_NOP};
-    return readCommand(SX1262_GET_RX_BUFFER_STATUS, cmd_buf, 3, rx_status);
+    uint8_t cmd_buf[2] = {SX1262_CMD_NOP};
+    return readCommand(SX1262_GET_RX_BUFFER_STATUS, cmd_buf, 2, rx_status);
 }
 
 command_status_t SX1262::getPacketStatus(uint8_t *pkt_status) {
@@ -356,6 +373,16 @@ command_status_t SX1262::getPacketStatus(uint8_t *pkt_status) {
 command_status_t SX1262::getRssiInst(uint8_t *rssi) {
     uint8_t cmd_buf[2] = {SX1262_CMD_NOP};
     return readCommand(SX1262_GET_RSSI_INST, cmd_buf, 2, rssi,1,true);
+}
+
+command_status_t SX1262::getStats(uint8_t *stats) {
+    uint8_t cmd_buf[7] = {SX1262_CMD_NOP};
+    return readCommand(SX1262_GET_STATS, cmd_buf, 7, stats);
+}
+
+command_status_t SX1262::resetStats() {
+    uint8_t cmd_buf[6] = {SX1262_CMD_NOP};
+    return writeCommand(SX1262_RESET_STATS, cmd_buf, 6);
 }
 
 /* 
@@ -377,12 +404,12 @@ command_status_t SX1262::clearDeviceErrors() {
 }
 
 bool SX1262::isBusy() {
-    uint8_t busy_timeout = 0;
+    uint16_t busy_timeout = 0;
     while(digitalRead(_BUSY)) {
         delay(5);
         busy_timeout++;
 
-        if (busy_timeout > 10) {
+        if (busy_timeout > 400) {
             Serial.println(F("ERROR - BUSY TIMEOUT!"));
             return true;
         }
