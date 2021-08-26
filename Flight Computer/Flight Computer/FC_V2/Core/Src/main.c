@@ -301,7 +301,7 @@ int main(void)
   		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
   		stimestructureget.Hours = 0x11;
-  		stimestructureget.Minutes = 0x11;
+  		stimestructureget.Minutes = 0x50;
   		stimestructureget.Seconds = 0x00;
   		stimestructureget.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   		stimestructureget.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -310,8 +310,8 @@ int main(void)
   			Error_Handler();
   		}
   		sdatestructureget.WeekDay = RTC_WEEKDAY_MONDAY;
-  		sdatestructureget.Month = RTC_MONTH_APRIL;
-  		sdatestructureget.Date = 0x12;
+  		sdatestructureget.Month = RTC_MONTH_AUGUST;
+  		sdatestructureget.Date = 0x10;
   		sdatestructureget.Year = 0x21;
 
   		if (HAL_RTC_SetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BCD)
@@ -321,7 +321,7 @@ int main(void)
 
   		/** Enable the Alarm A */
   		sAlarmA.AlarmTime.Hours = 0x11;
-  		sAlarmA.AlarmTime.Minutes = 0x55;
+  		sAlarmA.AlarmTime.Minutes = 0x51;
   		sAlarmA.AlarmTime.Seconds = 0x03;
   		sAlarmA.AlarmTime.SubSeconds = 0x0;
   		sAlarmA.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
@@ -337,7 +337,7 @@ int main(void)
   		}
   		/** Enable the Alarm B */
   		sAlarmB.AlarmTime.Hours = 0x11;
-  		sAlarmB.AlarmTime.Minutes = 0x42;
+  		sAlarmB.AlarmTime.Minutes = 0x53;
   		sAlarmB.AlarmTime.Seconds = 0x12;
   		sAlarmB.AlarmTime.SubSeconds = 0x0;
   		sAlarmB.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
@@ -410,17 +410,19 @@ int main(void)
   {
 
 	  // Check Alarm
-  }
+
 	  pollAlarmInterruptFlag();
 
-	  	  // alarmAOccurred is a flag indicating time to sleep
-	  	  if (alarmAOccurred) {
-	  		  sprintf((char *)msg, "entered alarmAOccurred in while loop, going to sleep\r\n");
-	  		  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
+	 	  // alarmAOccurred is a flag indicating time to sleep
+	 	  if (alarmAOccurred) {
+	 		  sprintf((char *)msg, "entered alarmAOccurred in while loop, going to sleep\r\n");
+	 		  HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 1000);
 
-	  		  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-	  		  HAL_SuspendTick(); // systick generates interrupts which may wake the processor
-	  		  HAL_PWR_EnterSTANDBYMode();
+	 		  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+	 		  HAL_SuspendTick(); // systick generates interrupts which may wake the processor
+	 		  HAL_PWR_EnterSTANDBYMode();
+
+  }
 
 	ITM_Port32(31) = 1;
 
@@ -816,9 +818,9 @@ static void MX_RTC_Init(void)
   /*##-1- Configure the Date #################################################*/
   /* Set Date: Tuesday April 8th 2021 */
   sdatestructure.Year = 0x21;
-  sdatestructure.Month = RTC_MONTH_APRIL;
-  sdatestructure.Date = 0x08;
-  sdatestructure.WeekDay = RTC_WEEKDAY_THURSDAY;
+  sdatestructure.Month = RTC_MONTH_AUGUST;
+  sdatestructure.Date = 0x10;
+  sdatestructure.WeekDay = RTC_WEEKDAY_TUESDAY;
 
   if(HAL_RTC_SetDate(&hrtc,&sdatestructure,RTC_FORMAT_BCD) != HAL_OK)
   {
@@ -828,8 +830,8 @@ static void MX_RTC_Init(void)
 
   /*##-2- Configure the Time #################################################*/
   /* Set Time: 01:45:00 */
-  stimestructure.Hours = 0x02;
-  stimestructure.Minutes = 0x47;
+  stimestructure.Hours = 0x01;
+  stimestructure.Minutes = 0x45;
   stimestructure.Seconds = 0x00;
   stimestructure.TimeFormat = RTC_HOURFORMAT12_AM;
   stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE ;
