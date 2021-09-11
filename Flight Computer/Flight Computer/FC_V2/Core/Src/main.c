@@ -300,8 +300,8 @@ int main(void)
   				stimestructureget.Seconds);
   		HAL_UART_Transmit(&huart2, (uint8_t*) msg, strlen(msg), 1000);
 
-  		stimestructureget.Hours = 0x11;
-  		stimestructureget.Minutes = 0x50;
+  		stimestructureget.Hours = 0x07;
+  		stimestructureget.Minutes = 0x00;
   		stimestructureget.Seconds = 0x00;
   		stimestructureget.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   		stimestructureget.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -309,9 +309,9 @@ int main(void)
   				!= HAL_OK) {
   			Error_Handler();
   		}
-  		sdatestructureget.WeekDay = RTC_WEEKDAY_MONDAY;
-  		sdatestructureget.Month = RTC_MONTH_AUGUST;
-  		sdatestructureget.Date = 0x10;
+  		sdatestructureget.WeekDay = RTC_WEEKDAY_SATURDAY;
+  		sdatestructureget.Month = RTC_MONTH_SEPTEMBER;
+  		sdatestructureget.Date = 0x11;
   		sdatestructureget.Year = 0x21;
 
   		if (HAL_RTC_SetDate(&hrtc, &sdatestructureget, RTC_FORMAT_BCD)
@@ -320,9 +320,9 @@ int main(void)
   		}
 
   		/** Enable the Alarm A */
-  		sAlarmA.AlarmTime.Hours = 0x11;
-  		sAlarmA.AlarmTime.Minutes = 0x51;
-  		sAlarmA.AlarmTime.Seconds = 0x03;
+  		sAlarmA.AlarmTime.Hours = 0x07;
+  		sAlarmA.AlarmTime.Minutes = 0x01;
+  		sAlarmA.AlarmTime.Seconds = 0x05;
   		sAlarmA.AlarmTime.SubSeconds = 0x0;
   		sAlarmA.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   		sAlarmA.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -330,15 +330,15 @@ int main(void)
   //		sAlarmA.AlarmMask = RTC_ALARMMASK_ALL; // triggers alarm every second
   		sAlarmA.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_NONE;
   		sAlarmA.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-  		sAlarmA.AlarmDateWeekDay = 0x1;
+  		sAlarmA.AlarmDateWeekDay = 0x7;
   		sAlarmA.Alarm = RTC_ALARM_A;
   		if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmA, RTC_FORMAT_BCD) != HAL_OK) {
   			Error_Handler();
   		}
   		/** Enable the Alarm B */
-  		sAlarmB.AlarmTime.Hours = 0x11;
-  		sAlarmB.AlarmTime.Minutes = 0x53;
-  		sAlarmB.AlarmTime.Seconds = 0x12;
+  		sAlarmB.AlarmTime.Hours = 0x07;
+  		sAlarmB.AlarmTime.Minutes = 0x03;
+  		sAlarmB.AlarmTime.Seconds = 0x10;
   		sAlarmB.AlarmTime.SubSeconds = 0x0;
   		sAlarmB.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
   		sAlarmB.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -346,7 +346,7 @@ int main(void)
   //		sAlarmB.AlarmMask = RTC_ALARMMASK_ALL; // triggers alarm every second
   		sAlarmB.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_NONE;
   		sAlarmB.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-  		sAlarmB.AlarmDateWeekDay = 0x1;
+  		sAlarmB.AlarmDateWeekDay = 0x7;
   		sAlarmB.Alarm = RTC_ALARM_B;
   		if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarmB, RTC_FORMAT_BCD) != HAL_OK) {
   			Error_Handler();
