@@ -37,8 +37,8 @@ $(wildcard ../makefile.targets) \
 
 BUILD_ARTIFACT_NAME := f303_rtc_wakesleep
 BUILD_ARTIFACT_EXTENSION := elf
-BUILD_ARTIFACT_PREFIX := 
-BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME).$(BUILD_ARTIFACT_EXTENSION)
+BUILD_ARTIFACT_PREFIX :=
+BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
@@ -61,8 +61,8 @@ all: main-build
 main-build: f303_rtc_wakesleep.elf secondary-outputs
 
 # Tool invocations
-f303_rtc_wakesleep.elf: $(OBJS) $(USER_OBJS) C:\Users\JO\Desktop\Rocket\ Team\00\ STM32\ Workspace\avionics-2021\Flight\ Computer\Learning\f303_rtc_wakesleep\STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "f303_rtc_wakesleep.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\JO\Desktop\Rocket Team\00 STM32 Workspace\avionics-2021\Flight Computer\Learning\f303_rtc_wakesleep\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_rtc_wakesleep.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+f303_rtc_wakesleep.elf: $(OBJS) $(USER_OBJS) C:\Users\ojett\Documents\McGill\avionics-2021\Flight\ Computer\Learning\f303_rtc_wakesleep\STM32F303RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "f303_rtc_wakesleep.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\ojett\Documents\McGill\avionics-2021\Flight Computer\Learning\f303_rtc_wakesleep\STM32F303RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="f303_rtc_wakesleep.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -83,7 +83,7 @@ f303_rtc_wakesleep.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEP
 
 # Other Targets
 clean:
-	-$(RM) *
+	-$(RM) $(SIZE_OUTPUT)$(OBJDUMP_LIST)$(EXECUTABLES)$(OBJS)$(S_DEPS)$(S_UPPER_DEPS)$(C_DEPS)$(OBJCOPY_BIN) f303_rtc_wakesleep.elf
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
@@ -96,6 +96,5 @@ warn-no-linker-script-specified:
 	@echo 'Warning: No linker script specified. Check the linker settings in the build configuration.'
 
 .PHONY: all clean dependents fail-specified-linker-script-missing warn-no-linker-script-specified
-.SECONDARY:
 
 -include ../makefile.targets

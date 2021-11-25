@@ -39,11 +39,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_line   000099aa  00000000  00000000  0004bdce  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000c0ba8  00000000  00000000  00055778  2**0
+ 18 .debug_str    000c0b9c  00000000  00000000  00055778  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000053  00000000  00000000  00116320  2**0
+ 19 .comment      00000053  00000000  00000000  00116314  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00002148  00000000  00000000  00116374  2**2
+ 20 .debug_frame  00002148  00000000  00000000  00116368  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -230,8 +230,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t number = 12;
- 80002f2:	230c      	movs	r3, #12
+  uint32_t number = 2;
+ 80002f2:	2302      	movs	r3, #2
  80002f4:	60fb      	str	r3, [r7, #12]
   uint32_t address =  0x0807F800U;
  80002f6:	4b1b      	ldr	r3, [pc, #108]	; (8000364 <main+0x88>)
